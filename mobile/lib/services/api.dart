@@ -15,8 +15,8 @@ class Api {
   // Physical Android phone:
   // http://YOUR_PC_IP_ADDRESS:8000
   //
-  static const String baseUrl = 'http://172.18.2.12:8000';
-
+  static const String baseUrl =
+    'https://uniattend-backend-gu8b.onrender.com';
   // ============================================================
   // HEADERS
   // ============================================================
