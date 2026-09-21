@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+
 import '../services/admin_api.dart';
 
 class AdminTimetable extends StatefulWidget {
@@ -34,58 +35,95 @@ class _AdminTimetableState extends State<AdminTimetable> {
 
   Future<void> upload() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-  type: FileType.custom,
-  allowedExtensions: ['xlsx', 'xlsm', 'xls'],
-  withData: true,
-);
+      // ------------------------------------------------------------
+      // FILE PICKER 13.x
+      // Pick ONE Excel file.
+      // ------------------------------------------------------------
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: [
+          'xlsx',
+          'xlsm',
+          'xls',
+        ],
+      );
 
-      if (result == null) {
+      // User cancelled the file picker.
+      if (file == null) {
         return;
       }
 
-      final file = result.files.single;
+      // ------------------------------------------------------------
+      // Read the selected Excel file.
+      // file_picker 13.x no longer uses:
+      // withData: true
+      //
+      // Instead we use:
+      // file.readAsBytes()
+      // ------------------------------------------------------------
+      final bytes = await file.readAsBytes();
 
-      if (file.bytes == null) {
+      if (bytes.isEmpty) {
         _msg('Could not read the selected Excel file.');
         return;
       }
+
+      if (!mounted) return;
 
       setState(() {
         uploading = true;
       });
 
+      // ------------------------------------------------------------
+      // SEND EXCEL FILE TO FASTAPI BACKEND
+      // ------------------------------------------------------------
       final response = await AdminApi.uploadTimetable(
         widget.token,
         file.name,
-        file.bytes!,
+        bytes,
       );
 
+      // ------------------------------------------------------------
+      // READ IMPORT RESULTS
+      // ------------------------------------------------------------
       final created = response['created_count'] ?? 0;
       final skipped = response['skipped_count'] ?? 0;
       final errors = response['error_count'] ?? 0;
 
       if (!mounted) return;
 
+      // ------------------------------------------------------------
+      // SHOW IMPORT SUMMARY
+      // ------------------------------------------------------------
       await showDialog(
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: const Text('Timetable Import Complete'),
+            title: const Text(
+              'Timetable Import Complete',
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Created entries: $created'),
+                Text(
+                  'Created entries: $created',
+                ),
                 const SizedBox(height: 8),
-                Text('Skipped entries: $skipped'),
+                Text(
+                  'Skipped entries: $skipped',
+                ),
                 const SizedBox(height: 8),
-                Text('Errors: $errors'),
+                Text(
+                  'Errors: $errors',
+                ),
               ],
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
                 child: const Text('OK'),
               ),
             ],
@@ -93,6 +131,7 @@ class _AdminTimetableState extends State<AdminTimetable> {
         },
       );
 
+      // Reload timetable after successful import.
       reload();
     } catch (e) {
       if (!mounted) return;
@@ -124,22 +163,39 @@ class _AdminTimetableState extends State<AdminTimetable> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Timetable Management'),
+        title: const Text(
+          'Timetable Management',
+        ),
         actions: [
+          // --------------------------------------------------------
+          // REFRESH
+          // --------------------------------------------------------
           IconButton(
             tooltip: 'Refresh',
             onPressed: uploading ? null : reload,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(
+              Icons.refresh,
+            ),
           ),
+
+          // --------------------------------------------------------
+          // UPLOAD EXCEL
+          // --------------------------------------------------------
           IconButton(
             tooltip: 'Upload Excel',
             onPressed: uploading ? null : upload,
-            icon: const Icon(Icons.upload_file),
+            icon: const Icon(
+              Icons.upload_file,
+            ),
           ),
         ],
       ),
 
-      floatingActionButton: FloatingActionButton.extended(
+      // ------------------------------------------------------------
+      // FLOATING UPLOAD BUTTON
+      // ------------------------------------------------------------
+      floatingActionButton:
+          FloatingActionButton.extended(
         onPressed: uploading ? null : upload,
         icon: uploading
             ? const SizedBox(
@@ -150,7 +206,9 @@ class _AdminTimetableState extends State<AdminTimetable> {
                   color: Colors.white,
                 ),
               )
-            : const Icon(Icons.upload_file),
+            : const Icon(
+                Icons.upload_file,
+              ),
         label: Text(
           uploading
               ? 'Importing...'
@@ -158,10 +216,15 @@ class _AdminTimetableState extends State<AdminTimetable> {
         ),
       ),
 
+      // ------------------------------------------------------------
+      // TIMETABLE
+      // ------------------------------------------------------------
       body: FutureBuilder<List<dynamic>>(
         future: future,
-
         builder: (context, snapshot) {
+          // --------------------------------------------------------
+          // LOADING
+          // --------------------------------------------------------
           if (snapshot.connectionState ==
               ConnectionState.waiting) {
             return const Center(
@@ -169,12 +232,16 @@ class _AdminTimetableState extends State<AdminTimetable> {
             );
           }
 
+          // --------------------------------------------------------
+          // ERROR
+          // --------------------------------------------------------
           if (snapshot.hasError) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  'Error loading timetable:\n\n${snapshot.error}',
+                  'Error loading timetable:\n\n'
+                  '${snapshot.error}',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -183,45 +250,58 @@ class _AdminTimetableState extends State<AdminTimetable> {
 
           final rows = snapshot.data ?? [];
 
+          // --------------------------------------------------------
+          // EMPTY
+          // --------------------------------------------------------
           if (rows.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
                   'No timetable entries found.\n\n'
-                  'Use "Upload Excel" to import the university timetable.',
+                  'Use "Upload Excel" to import '
+                  'the university timetable.',
                   textAlign: TextAlign.center,
                 ),
               ),
             );
           }
 
+          // --------------------------------------------------------
+          // TIMETABLE LIST
+          // --------------------------------------------------------
           return RefreshIndicator(
             onRefresh: () async {
               reload();
               await future;
             },
-
             child: ListView.builder(
               padding: const EdgeInsets.only(
                 bottom: 100,
                 top: 10,
               ),
-
               itemCount: rows.length,
-
               itemBuilder: (context, index) {
                 final item =
-                    Map<String, dynamic>.from(rows[index]);
+                    Map<String, dynamic>.from(
+                  rows[index],
+                );
 
+                // --------------------------------------------------
+                // CLASS MODE
+                // --------------------------------------------------
                 final mode =
-                    (item['class_mode'] ?? 'PHYSICAL')
+                    (item['class_mode'] ??
+                            'PHYSICAL')
                         .toString()
                         .toUpperCase();
 
                 final physical =
                     mode == 'PHYSICAL';
 
+                // --------------------------------------------------
+                // TIMETABLE FIELDS
+                // --------------------------------------------------
                 final courseCode =
                     item['course_code'] ?? '';
 
@@ -238,7 +318,8 @@ class _AdminTimetableState extends State<AdminTimetable> {
                     item['end'] ?? '';
 
                 final room =
-                    item['room'] ?? 'Room TBA';
+                    item['room'] ??
+                        'Room TBA';
 
                 final group =
                     item['group'] ?? '';
@@ -246,13 +327,19 @@ class _AdminTimetableState extends State<AdminTimetable> {
                 final block =
                     item['block'] ?? '';
 
+                // --------------------------------------------------
+                // TIMETABLE CARD
+                // --------------------------------------------------
                 return Card(
-                  margin: const EdgeInsets.symmetric(
+                  margin:
+                      const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 5,
                   ),
-
                   child: ListTile(
+                    // ------------------------------------------------
+                    // CLASS TYPE ICON
+                    // ------------------------------------------------
                     leading: CircleAvatar(
                       child: Icon(
                         physical
@@ -261,27 +348,39 @@ class _AdminTimetableState extends State<AdminTimetable> {
                       ),
                     ),
 
+                    // ------------------------------------------------
+                    // COURSE
+                    // ------------------------------------------------
                     title: Text(
                       '$courseCode - $courseTitle',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                      style:
+                          const TextStyle(
+                        fontWeight:
+                            FontWeight.bold,
                       ),
                     ),
 
+                    // ------------------------------------------------
+                    // DETAILS
+                    // ------------------------------------------------
                     subtitle: Padding(
                       padding:
-                          const EdgeInsets.only(top: 6),
-
+                          const EdgeInsets.only(
+                        top: 6,
+                      ),
                       child: Column(
                         crossAxisAlignment:
-                            CrossAxisAlignment.start,
-
+                            CrossAxisAlignment
+                                .start,
                         children: [
                           Text(
-                            '$day • $start - $end',
+                            '$day • '
+                            '$start - $end',
                           ),
 
-                          const SizedBox(height: 3),
+                          const SizedBox(
+                            height: 3,
+                          ),
 
                           Text(
                             physical
@@ -289,13 +388,17 @@ class _AdminTimetableState extends State<AdminTimetable> {
                                 : 'ONLINE',
                           ),
 
+                          // ------------------------------------------
+                          // GROUP
+                          // ------------------------------------------
                           if (group
                               .toString()
                               .trim()
                               .isNotEmpty)
                             Padding(
                               padding:
-                                  const EdgeInsets.only(
+                                  const EdgeInsets
+                                      .only(
                                 top: 3,
                               ),
                               child: Text(
@@ -303,13 +406,17 @@ class _AdminTimetableState extends State<AdminTimetable> {
                               ),
                             ),
 
+                          // ------------------------------------------
+                          // BLOCK
+                          // ------------------------------------------
                           if (block
                               .toString()
                               .trim()
                               .isNotEmpty)
                             Padding(
                               padding:
-                                  const EdgeInsets.only(
+                                  const EdgeInsets
+                                      .only(
                                 top: 3,
                               ),
                               child: Text(
@@ -320,26 +427,36 @@ class _AdminTimetableState extends State<AdminTimetable> {
                       ),
                     ),
 
+                    // ------------------------------------------------
+                    // DELETE MENU
+                    // ------------------------------------------------
                     trailing:
                         PopupMenuButton<String>(
-                      onSelected: (value) async {
-                        if (value != 'delete') {
+                      onSelected:
+                          (value) async {
+                        if (value !=
+                            'delete') {
                           return;
                         }
 
-                        final id = item['id'];
+                        final id =
+                            item['id'];
 
                         if (id == null) {
                           _msg(
-                            'This timetable entry has no ID.',
+                            'This timetable entry '
+                            'has no ID.',
                           );
                           return;
                         }
 
                         try {
-                          await AdminApi.deleteTimetable(
+                          await AdminApi
+                              .deleteTimetable(
                             widget.token,
-                            int.parse(id.toString()),
+                            int.parse(
+                              id.toString(),
+                            ),
                           );
 
                           reload();
@@ -349,17 +466,19 @@ class _AdminTimetableState extends State<AdminTimetable> {
                           );
                         } catch (e) {
                           _msg(
-                            e.toString().replaceFirst(
+                            e.toString()
+                                .replaceFirst(
                               'Exception: ',
                               '',
                             ),
                           );
                         }
                       },
-
-                      itemBuilder: (context) {
+                      itemBuilder:
+                          (context) {
                         return const [
-                          PopupMenuItem<String>(
+                          PopupMenuItem<
+                              String>(
                             value: 'delete',
                             child: Text(
                               'Remove entry',
@@ -378,3 +497,8 @@ class _AdminTimetableState extends State<AdminTimetable> {
     );
   }
 }
+
+
+  
+
+
