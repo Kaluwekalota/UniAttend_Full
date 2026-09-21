@@ -1,0 +1,9 @@
+Add this after the existing admin router registration in backend/app/main.py:
+
+from .academic_features import router as academic_router
+app.include_router(academic_router)
+
+IMPORTANT: Do not import academic_features before `current_user` and `audit`
+are defined in main.py, because academic_features uses those dependencies.
+If you get a circular import, move current_user/admin_only/audit into a separate
+auth_dependencies.py module and import them from both routers.

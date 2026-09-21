@@ -1,0 +1,17 @@
+ADD THESE TWO LINES TO backend/app/main.py AFTER your existing imports:
+
+from .admin_features import router as admin_router
+app.include_router(admin_router)
+
+IMPORTANT:
+Because admin_features imports current_user and audit from main.py, put the two lines
+AFTER current_user and audit have been defined, or refactor those helpers into a separate
+auth module. The simplest safe approach is:
+
+1. Leave the imports at the top.
+2. Add `from .admin_features import router as admin_router`
+   immediately before `@app.get("/")`
+3. Add `app.include_router(admin_router)` immediately before `@app.get("/")`
+
+If Python reports a circular import, instead move `current_user`, `role`, and `audit`
+from main.py into a separate `auth_dependencies.py`, then import them from there.

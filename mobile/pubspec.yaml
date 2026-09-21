@@ -1,0 +1,54 @@
+name: uni_attend
+
+description: Full Uni Attend offline-first attendance system
+
+publish_to: "none"
+
+version: 2.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP/API communication
+  http: ^1.2.2
+
+  # Local SQLite database
+  sqflite: ^2.3.3+1
+
+  # File/path utilities
+  path: ^1.9.0
+
+  # QR code scanning
+  mobile_scanner: ^7.4.2
+
+  # QR code generation
+  qr_flutter: ^4.1.0
+
+  # Fingerprint/biometric authentication
+  local_auth: ^2.2.0
+
+  # Unique IDs for offline attendance records
+  uuid: ^4.5.1
+
+  # Local preferences/token storage
+  shared_preferences: ^2.3.2
+
+  # Profile picture/image selection
+  image_picker: ^1.1.2
+
+  # Excel/timetable file selection
+  file_picker: ^8.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/kmu_logo.jpg

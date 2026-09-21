@@ -1,0 +1,7 @@
+Add this dependency to your Flutter pubspec.yaml:
+
+dependencies:
+  file_picker: ^8.1.2
+
+Then run:
+flutter pub get

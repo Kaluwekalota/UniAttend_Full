@@ -1,0 +1,6 @@
+.dart_tool/
+build/
+android/.gradle/
+*.lock
+.env
+node_modules/
