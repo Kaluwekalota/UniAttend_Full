@@ -4,6 +4,10 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 class AdminApi {
+  // ============================================================
+  // BASE URL
+  // ============================================================
+
   static const String baseUrl = 'http://localhost:8000';
 
   // ============================================================
@@ -34,13 +38,21 @@ class AdminApi {
     late http.Response response;
 
     try {
-      switch (method) {
+      switch (method.toUpperCase()) {
+        // ========================================================
+        // GET
+        // ========================================================
+
         case 'GET':
           response = await http.get(
             uri,
             headers: headers(token),
           );
           break;
+
+        // ========================================================
+        // POST
+        // ========================================================
 
         case 'POST':
           response = await http.post(
@@ -53,12 +65,35 @@ class AdminApi {
           );
           break;
 
+        // ========================================================
+        // PATCH
+        // ========================================================
+
+        case 'PATCH':
+          response = await http.patch(
+            uri,
+            headers: {
+              ...headers(token),
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(body ?? {}),
+          );
+          break;
+
+        // ========================================================
+        // DELETE
+        // ========================================================
+
         case 'DELETE':
           response = await http.delete(
             uri,
             headers: headers(token),
           );
           break;
+
+        // ========================================================
+        // UNSUPPORTED METHOD
+        // ========================================================
 
         default:
           throw Exception(
@@ -87,6 +122,8 @@ class AdminApi {
             message = decoded['detail'].toString();
           } else if (decoded['message'] != null) {
             message = decoded['message'].toString();
+          } else if (decoded['error'] != null) {
+            message = decoded['error'].toString();
           }
         }
       } catch (_) {}
@@ -152,11 +189,18 @@ class AdminApi {
       return List<dynamic>.from(response);
     }
 
-    if (response is Map<String, dynamic> &&
-        response['data'] is List) {
-      return List<dynamic>.from(
-        response['data'],
-      );
+    if (response is Map<String, dynamic>) {
+      if (response['data'] is List) {
+        return List<dynamic>.from(
+          response['data'],
+        );
+      }
+
+      if (response['timetable'] is List) {
+        return List<dynamic>.from(
+          response['timetable'],
+        );
+      }
     }
 
     throw Exception(
@@ -178,16 +222,16 @@ class AdminApi {
     );
 
     try {
-      final request = http.MultipartRequest(
+      final multipartRequest = http.MultipartRequest(
         'POST',
         uri,
       );
 
-      request.headers.addAll(
+      multipartRequest.headers.addAll(
         headers(token),
       );
 
-      request.files.add(
+      multipartRequest.files.add(
         http.MultipartFile.fromBytes(
           'file',
           bytes,
@@ -196,7 +240,7 @@ class AdminApi {
       );
 
       final streamedResponse =
-          await request.send();
+          await multipartRequest.send();
 
       final response =
           await http.Response.fromStream(
@@ -216,10 +260,14 @@ class AdminApi {
           final decoded =
               jsonDecode(response.body);
 
-          if (decoded is Map<String, dynamic> &&
-              decoded['detail'] != null) {
-            message =
-                decoded['detail'].toString();
+          if (decoded is Map<String, dynamic>) {
+            if (decoded['detail'] != null) {
+              message =
+                  decoded['detail'].toString();
+            } else if (decoded['message'] != null) {
+              message =
+                  decoded['message'].toString();
+            }
           }
         } catch (_) {}
 
@@ -260,6 +308,38 @@ class AdminApi {
   }
 
   // ============================================================
+  // UPDATE TIMETABLE LOCATION
+  // ============================================================
+
+  static Future<Map<String, dynamic>>
+      updateTimetableLocation(
+    String token,
+    int timetableId,
+    double latitude,
+    double longitude,
+    double allowedRadius,
+  ) async {
+    final response = await request(
+      'PATCH',
+      '/admin/timetable/$timetableId/location',
+      token,
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'allowed_radius': allowedRadius,
+      },
+    );
+
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+
+    throw Exception(
+      'Invalid timetable location response.',
+    );
+  }
+
+  // ============================================================
   // DELETE TIMETABLE
   // ============================================================
 
@@ -291,9 +371,8 @@ class AdminApi {
     /*
      * UniAttend currently uses JWT authentication.
      *
-     * JWT access tokens are stateless, so the client handles
-     * logout by deleting the locally stored authentication
-     * information.
+     * JWT access tokens are stateless, so logout is handled
+     * locally by deleting the stored authentication information.
      *
      * There is intentionally no /logout request here.
      */
@@ -301,3 +380,4 @@ class AdminApi {
     return;
   }
 }
+

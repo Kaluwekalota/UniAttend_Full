@@ -1,11 +1,18 @@
 from datetime import datetime, timedelta
+import math
 import secrets
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .database import Base, engine, get_db
+from .database import (
+    Base,
+    engine,
+    get_db,
+    migrate_database,
+)
+
 from .models import (
     User,
     Course,
@@ -13,16 +20,19 @@ from .models import (
     AttendanceSession,
     Attendance,
 )
+
 from .schemas import (
     RegisterRequest,
     LoginRequest,
     AttendanceMarkRequest,
 )
+
 from .security import (
     hash_password,
     verify_password,
     create_access_token,
 )
+
 from .dependencies import (
     current_user,
 )
@@ -32,10 +42,24 @@ from .academic_features import (
     user_timetable_router,
 )
 
+# ============================================================
+# LECTURER PDF REPORTS
+# ============================================================
+
+from .lecturer_reports import (
+    router as lecturer_reports_router,
+)
+
 
 # ============================================================
 # DATABASE
 # ============================================================
+
+# IMPORTANT:
+# Run our custom migration first because create_all()
+# does NOT add new columns to existing SQLite tables.
+
+migrate_database()
 
 Base.metadata.create_all(bind=engine)
 
@@ -74,7 +98,18 @@ app.include_router(
     tags=["Admin & Academic"],
 )
 
-app.include_router(user_timetable_router)
+app.include_router(
+    user_timetable_router,
+)
+
+
+# ============================================================
+# LECTURER REPORT ROUTER
+# ============================================================
+
+app.include_router(
+    lecturer_reports_router,
+)
 
 
 # ============================================================
@@ -144,6 +179,7 @@ def register(
     staff_id = None
 
     if role == "student":
+
         if not data.student_id:
             raise HTTPException(
                 status_code=400,
@@ -165,6 +201,7 @@ def register(
             )
 
     if role == "lecturer":
+
         if data.staff_id:
             staff_id = data.staff_id.strip()
 
@@ -231,13 +268,6 @@ def login(
 ):
     """
     Login student, lecturer, or admin.
-
-    IMPORTANT:
-    The current security.py uses:
-
-        create_access_token(user_id, role)
-
-    Therefore the token is created using two arguments.
     """
 
     email = data.email.strip().lower()
@@ -268,10 +298,6 @@ def login(
             status_code=403,
             detail="This account has been disabled.",
         )
-
-    # ========================================================
-    # IMPORTANT TOKEN CREATION
-    # ========================================================
 
     token = create_access_token(
         str(user.id),
@@ -328,10 +354,6 @@ def get_me(
 # ============================================================
 # LECTURER TODAY
 # ============================================================
-#
-# This route is kept for compatibility with older Flutter code.
-# The new LecturerDashboard does NOT depend on this route.
-#
 
 @app.get("/lecturer/today")
 def lecturer_today(
@@ -360,6 +382,7 @@ def lecturer_today(
     results = []
 
     for item in timetable:
+
         results.append({
             "id": item.id,
             "course_id": item.course_id,
@@ -367,11 +390,13 @@ def lecturer_today(
             "course_title": item.course.title,
             "programme": item.course.programme,
             "lecturer_id": item.course.lecturer_id,
+
             "lecturer_name": (
                 item.course.lecturer.full_name
                 if item.course.lecturer
                 else None
             ),
+
             "day": item.day,
             "start": item.start,
             "end": item.end,
@@ -380,6 +405,11 @@ def lecturer_today(
             "block": item.block,
             "class_mode": item.class_mode,
             "is_active": item.is_active,
+
+            # LOCATION INFORMATION
+            "latitude": item.latitude,
+            "longitude": item.longitude,
+            "allowed_radius": item.allowed_radius,
         })
 
     return results
@@ -398,12 +428,6 @@ def create_attendance_session(
 ):
     """
     Lecturer generates an attendance QR code.
-
-    Prototype behaviour:
-    - No current-time restriction.
-    - No enrollment requirement.
-    - Timetable must exist.
-    - Lecturer must own the course.
     """
 
     if user.role != "lecturer":
@@ -447,7 +471,7 @@ def create_attendance_session(
         )
 
     # --------------------------------------------------------
-    # Close any previous active session for this timetable
+    # Close previous active session
     # --------------------------------------------------------
 
     previous_sessions = (
@@ -470,10 +494,8 @@ def create_attendance_session(
 
     now = datetime.utcnow()
 
-    # QR remains valid for 5 minutes.
     expires_at = now + timedelta(minutes=5)
 
-    # Class end time is kept separately.
     class_end_at = expires_at
 
     session = AttendanceSession(
@@ -501,8 +523,6 @@ def create_attendance_session(
         "message": "Attendance QR generated successfully.",
 
         "session_id": session.id,
-
-        # This is the value Flutter converts into the QR image.
         "token": session.token,
 
         "course_id": course.id,
@@ -519,6 +539,15 @@ def create_attendance_session(
         "block": timetable.block,
 
         "session_type": session.session_type,
+
+        # LOCATION INFORMATION
+        "latitude": timetable.latitude,
+        "longitude": timetable.longitude,
+        "allowed_radius": timetable.allowed_radius,
+
+        "location_required": (
+            timetable.class_mode.upper() == "PHYSICAL"
+        ),
 
         "created_at": session.created_at.isoformat(),
         "expires_at": session.expires_at.isoformat(),
@@ -688,6 +717,7 @@ def live_students(
     result = []
 
     for record in records:
+
         student = record.student
 
         result.append({
@@ -697,11 +727,64 @@ def live_students(
             "student_name": student.full_name,
             "full_name": student.full_name,
             "email": student.email,
+
             "marked_at": record.marked_at.isoformat(),
+
             "method": record.method,
+
+            # LOCATION INFORMATION
+            "latitude": record.latitude,
+            "longitude": record.longitude,
+            "distance_from_class": record.distance_from_class,
+            "location_verified": record.location_verified,
         })
 
     return result
+
+
+# ============================================================
+# DISTANCE CALCULATION
+# ============================================================
+
+def calculate_distance_meters(
+    latitude1: float,
+    longitude1: float,
+    latitude2: float,
+    longitude2: float,
+) -> float:
+    """
+    Calculate the distance between two GPS coordinates
+    using the Haversine formula.
+
+    Result is returned in metres.
+    """
+
+    earth_radius = 6_371_000
+
+    lat1 = math.radians(latitude1)
+    lat2 = math.radians(latitude2)
+
+    delta_lat = math.radians(
+        latitude2 - latitude1
+    )
+
+    delta_lon = math.radians(
+        longitude2 - longitude1
+    )
+
+    a = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(lat1)
+        * math.cos(lat2)
+        * math.sin(delta_lon / 2) ** 2
+    )
+
+    c = 2 * math.atan2(
+        math.sqrt(a),
+        math.sqrt(1 - a),
+    )
+
+    return earth_radius * c
 
 
 # ============================================================
@@ -717,17 +800,28 @@ def mark_attendance(
     """
     Student scans lecturer QR and marks attendance.
 
-    Prototype workflow:
+    Physical class:
 
-        QR Scan
-           ↓
-        Biometric verification in Flutter
-           ↓
-        API attendance mark
-           ↓
-        Duplicate check
-           ↓
-        Attendance saved
+        QR
+         ↓
+        Biometric
+         ↓
+        GPS location
+         ↓
+        Server calculates distance
+         ↓
+        Inside classroom boundary?
+         ↓
+        YES → Attendance recorded
+        NO  → Attendance rejected
+
+    Online class:
+
+        QR
+         ↓
+        Biometric
+         ↓
+        Attendance recorded
     """
 
     if user.role != "student":
@@ -737,7 +831,7 @@ def mark_attendance(
         )
 
     # --------------------------------------------------------
-    # Find QR attendance session
+    # FIND QR SESSION
     # --------------------------------------------------------
 
     session = (
@@ -755,7 +849,7 @@ def mark_attendance(
         )
 
     # --------------------------------------------------------
-    # Make sure session is active
+    # SESSION ACTIVE?
     # --------------------------------------------------------
 
     if not session.is_active:
@@ -765,13 +859,15 @@ def mark_attendance(
         )
 
     # --------------------------------------------------------
-    # Check QR expiry
+    # QR EXPIRY
     # --------------------------------------------------------
 
     now = datetime.utcnow()
 
     if now > session.expires_at:
+
         session.is_active = False
+
         db.commit()
 
         raise HTTPException(
@@ -780,7 +876,7 @@ def mark_attendance(
         )
 
     # --------------------------------------------------------
-    # Student ID
+    # STUDENT ID
     # --------------------------------------------------------
 
     student_id = data.student_id
@@ -792,8 +888,125 @@ def mark_attendance(
         )
 
     # --------------------------------------------------------
-    # DUPLICATE ATTENDANCE CHECK
+    # GET TIMETABLE
     # --------------------------------------------------------
+
+    timetable = (
+        db.query(Timetable)
+        .filter(
+            Timetable.id == session.timetable_id
+        )
+        .first()
+    )
+
+    if timetable is None:
+        raise HTTPException(
+            status_code=404,
+            detail="The timetable associated with this session was not found.",
+        )
+
+    # ========================================================
+    # LOCATION VERIFICATION
+    # ========================================================
+
+    location_verified = False
+    distance_from_class = None
+
+    # --------------------------------------------------------
+    # PHYSICAL CLASS
+    # --------------------------------------------------------
+
+    if timetable.class_mode.upper() == "PHYSICAL":
+
+        if (
+            timetable.latitude is None
+            or timetable.longitude is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "The classroom location has not been configured "
+                    "for this timetable entry. Please contact the administrator."
+                ),
+            )
+
+        if (
+            data.latitude is None
+            or data.longitude is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Your location could not be obtained. "
+                    "Please enable location services and try again."
+                ),
+            )
+
+        # ----------------------------------------------------
+        # Validate GPS ranges
+        # ----------------------------------------------------
+
+        if not -90 <= data.latitude <= 90:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid student latitude.",
+            )
+
+        if not -180 <= data.longitude <= 180:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid student longitude.",
+            )
+
+        # ----------------------------------------------------
+        # Calculate distance
+        # ----------------------------------------------------
+
+        distance_from_class = calculate_distance_meters(
+            timetable.latitude,
+            timetable.longitude,
+            data.latitude,
+            data.longitude,
+        )
+
+        allowed_radius = (
+            timetable.allowed_radius
+            if timetable.allowed_radius is not None
+            else 50.0
+        )
+
+        # ----------------------------------------------------
+        # LOCATION CHECK
+        # ----------------------------------------------------
+
+        if distance_from_class > allowed_radius:
+
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Attendance rejected. "
+                    f"You are approximately "
+                    f"{distance_from_class:.1f} metres "
+                    "from the classroom, while the allowed "
+                    f"radius is {allowed_radius:.1f} metres."
+                ),
+            )
+
+        location_verified = True
+
+    # --------------------------------------------------------
+    # ONLINE CLASS
+    # --------------------------------------------------------
+
+    else:
+
+        location_verified = True
+
+        distance_from_class = None
+
+    # ========================================================
+    # DUPLICATE ATTENDANCE CHECK
+    # ========================================================
 
     existing = (
         db.query(Attendance)
@@ -805,17 +1018,21 @@ def mark_attendance(
     )
 
     if existing:
+
         return {
             "success": False,
             "already_recorded": True,
-            "message": "Attendance has already been recorded for this class.",
+            "message": (
+                "Attendance has already been recorded "
+                "for this class."
+            ),
             "attendance_id": existing.id,
             "marked_at": existing.marked_at.isoformat(),
         }
 
-    # --------------------------------------------------------
+    # ========================================================
     # IDEMPOTENCY CHECK
-    # --------------------------------------------------------
+    # ========================================================
 
     existing_key = (
         db.query(Attendance)
@@ -827,41 +1044,52 @@ def mark_attendance(
     )
 
     if existing_key:
+
         return {
             "success": False,
             "already_recorded": True,
-            "message": "This attendance request has already been processed.",
+            "message": (
+                "This attendance request has already "
+                "been processed."
+            ),
             "attendance_id": existing_key.id,
             "marked_at": existing_key.marked_at.isoformat(),
         }
 
-    # --------------------------------------------------------
+    # ========================================================
     # CREATE ATTENDANCE RECORD
-    # --------------------------------------------------------
+    # ========================================================
 
     attendance = Attendance(
         session_id=session.id,
         student_id=user.id,
         idempotency_key=data.idempotency_key,
+
         method=(
             data.method
             if data.method
             else "QR+biometric"
         ),
+
         marked_at=now,
+
+        # LOCATION DATA
+        latitude=data.latitude,
+        longitude=data.longitude,
+        distance_from_class=distance_from_class,
+        location_verified=location_verified,
     )
 
     db.add(attendance)
 
     try:
+
         db.commit()
         db.refresh(attendance)
 
     except Exception:
-        db.rollback()
 
-        # Another request may have created the same
-        # attendance record at almost the same time.
+        db.rollback()
 
         duplicate = (
             db.query(Attendance)
@@ -873,10 +1101,13 @@ def mark_attendance(
         )
 
         if duplicate:
+
             return {
                 "success": False,
                 "already_recorded": True,
-                "message": "Attendance has already been recorded.",
+                "message": (
+                    "Attendance has already been recorded."
+                ),
                 "attendance_id": duplicate.id,
                 "marked_at": duplicate.marked_at.isoformat(),
             }
@@ -886,16 +1117,34 @@ def mark_attendance(
             detail="Unable to save attendance.",
         )
 
+    # ========================================================
+    # SUCCESS
+    # ========================================================
+
     return {
         "success": True,
         "already_recorded": False,
-        "message": "Attendance marked successfully.",
+
+        "message": (
+            "Attendance marked successfully."
+        ),
+
         "attendance_id": attendance.id,
         "session_id": session.id,
         "student_id": user.id,
+
         "course_id": session.course_id,
+
         "marked_at": attendance.marked_at.isoformat(),
+
         "method": attendance.method,
+
+        # LOCATION RESULT
+        "location_verified": attendance.location_verified,
+        "distance_from_class": attendance.distance_from_class,
+
+        "latitude": attendance.latitude,
+        "longitude": attendance.longitude,
     }
 
 
@@ -928,11 +1177,13 @@ def my_attendance(
     result = []
 
     for record in records:
+
         session = record.session
 
         course = None
 
         if session:
+
             course = (
                 db.query(Course)
                 .filter(
@@ -944,6 +1195,7 @@ def my_attendance(
         timetable = None
 
         if session:
+
             timetable = (
                 db.query(Timetable)
                 .filter(
@@ -953,49 +1205,66 @@ def my_attendance(
             )
 
         result.append({
+
             "attendance_id": record.id,
+
             "session_id": (
                 session.id
                 if session
                 else None
             ),
+
             "course_id": (
                 course.id
                 if course
                 else None
             ),
+
             "course_code": (
                 course.code
                 if course
                 else None
             ),
+
             "course_title": (
                 course.title
                 if course
                 else None
             ),
+
             "day": (
                 timetable.day
                 if timetable
                 else None
             ),
+
             "start": (
                 timetable.start
                 if timetable
                 else None
             ),
+
             "end": (
                 timetable.end
                 if timetable
                 else None
             ),
+
             "room": (
                 timetable.room
                 if timetable
                 else None
             ),
+
             "marked_at": record.marked_at.isoformat(),
+
             "method": record.method,
+
+            # LOCATION INFORMATION
+            "latitude": record.latitude,
+            "longitude": record.longitude,
+            "distance_from_class": record.distance_from_class,
+            "location_verified": record.location_verified,
         })
 
     return result
@@ -1025,3 +1294,4 @@ def admin_status(
             "role": user.role,
         },
     }
+

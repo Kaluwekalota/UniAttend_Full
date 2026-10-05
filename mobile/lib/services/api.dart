@@ -5,18 +5,10 @@ class Api {
   // ============================================================
   // BASE URL
   // ============================================================
-  //
-  // Flutter Web on the same computer:
-  // http://localhost:8000
-  //
-  // Android Emulator:
-  // http://10.0.2.2:8000
-  //
-  // Physical Android phone:
-  // http://YOUR_PC_IP_ADDRESS:8000
-  //
+
   static const String baseUrl =
-    'https://uniattend-backend-gu8b.onrender.com';
+      'https://uniattend-backend-gu8b.onrender.com';
+
   // ============================================================
   // HEADERS
   // ============================================================
@@ -25,7 +17,6 @@ class Api {
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-
       if (token != null && token.isNotEmpty)
         'Authorization': 'Bearer $token',
     };
@@ -47,20 +38,12 @@ class Api {
 
     try {
       switch (method.toUpperCase()) {
-        // ------------------------------------------------------
-        // GET
-        // ------------------------------------------------------
-
         case 'GET':
           response = await http.get(
             uri,
             headers: headers(token),
           );
           break;
-
-        // ------------------------------------------------------
-        // POST
-        // ------------------------------------------------------
 
         case 'POST':
           response = await http.post(
@@ -70,10 +53,6 @@ class Api {
           );
           break;
 
-        // ------------------------------------------------------
-        // PUT
-        // ------------------------------------------------------
-
         case 'PUT':
           response = await http.put(
             uri,
@@ -82,10 +61,6 @@ class Api {
           );
           break;
 
-        // ------------------------------------------------------
-        // PATCH
-        // ------------------------------------------------------
-
         case 'PATCH':
           response = await http.patch(
             uri,
@@ -93,10 +68,6 @@ class Api {
             body: jsonEncode(body ?? {}),
           );
           break;
-
-        // ------------------------------------------------------
-        // DELETE
-        // ------------------------------------------------------
 
         case 'DELETE':
           response = await http.delete(
@@ -256,9 +227,7 @@ class Api {
 
     if (response is Map<String, dynamic> &&
         response['data'] is List) {
-      return List<dynamic>.from(
-        response['data'],
-      );
+      return List<dynamic>.from(response['data']);
     }
 
     throw Exception(
@@ -288,9 +257,7 @@ class Api {
 
     if (response is Map<String, dynamic> &&
         response['data'] is List) {
-      return List<dynamic>.from(
-        response['data'],
-      );
+      return List<dynamic>.from(response['data']);
     }
 
     throw Exception(
@@ -317,9 +284,7 @@ class Api {
 
     if (response is Map<String, dynamic> &&
         response['data'] is List) {
-      return List<dynamic>.from(
-        response['data'],
-      );
+      return List<dynamic>.from(response['data']);
     }
 
     throw Exception(
@@ -346,9 +311,7 @@ class Api {
 
     if (response is Map<String, dynamic> &&
         response['data'] is List) {
-      return List<dynamic>.from(
-        response['data'],
-      );
+      return List<dynamic>.from(response['data']);
     }
 
     throw Exception(
@@ -359,24 +322,7 @@ class Api {
   // ============================================================
   // CREATE REAL ATTENDANCE SESSION
   // ============================================================
-  //
-  // IMPORTANT:
-  //
-  // The lecturer must provide BOTH:
-  //
-  // courseId
-  // timetableId
-  //
-  // The backend then checks:
-  //
-  // 1. Lecturer owns the course
-  // 2. Timetable belongs to the course
-  // 3. Today matches the timetable
-  // 4. Current time is within the class
-  // 5. A valid QR session is created
-  //
-  // The returned "token" is the REAL QR value.
-  //
+
   static Future<Map<String, dynamic>> createSession(
     String token,
     int courseId,
@@ -468,9 +414,7 @@ class Api {
 
     if (response is Map<String, dynamic> &&
         response['data'] is List) {
-      return List<dynamic>.from(
-        response['data'],
-      );
+      return List<dynamic>.from(response['data']);
     }
 
     throw Exception(
@@ -483,21 +427,37 @@ class Api {
   // MARK ATTENDANCE
   // ============================================================
   //
-  // Student scans lecturer QR.
+  // Flow:
   //
-  // The QR contains the attendance session token.
+  // QR code
+  //     ↓
+  // biometric verification
+  //     ↓
+  // GPS location
+  //     ↓
+  // FastAPI
+  //     ↓
+  // classroom radius validation
+  //     ↓
+  // attendance recorded
   //
-  // The student then completes biometric verification
-  // in the Flutter application.
+  // For PHYSICAL classes the backend checks:
   //
-  // After successful biometric verification, Flutter
-  // calls this method.
+  // latitude
+  // longitude
+  // allowed_radius
   //
+  // For ONLINE classes the backend skips
+  // classroom geofence validation.
+  //
+
   static Future<Map<String, dynamic>> mark(
     String token,
     int studentId,
     String qr,
     String key, {
+    required double latitude,
+    required double longitude,
     String method = 'QR+biometric',
   }) async {
     if (qr.trim().isEmpty) {
@@ -518,6 +478,18 @@ class Api {
       );
     }
 
+    if (latitude < -90 || latitude > 90) {
+      throw Exception(
+        'Invalid GPS latitude.',
+      );
+    }
+
+    if (longitude < -180 || longitude > 180) {
+      throw Exception(
+        'Invalid GPS longitude.',
+      );
+    }
+
     final response = await request(
       'POST',
       '/attendance/mark',
@@ -527,6 +499,12 @@ class Api {
         'student_id': studentId,
         'idempotency_key': key,
         'method': method,
+
+        // ======================================================
+        // GPS LOCATION
+        // ======================================================
+        'latitude': latitude,
+        'longitude': longitude,
       },
     );
 
@@ -539,23 +517,89 @@ class Api {
       'from server.',
     );
   }
+  // ============================================================
+  // DOWNLOAD LECTURER ATTENDANCE PDF REPORT
+  // ============================================================
 
+  static Future<List<int>> downloadAttendancePdf(
+    String token,
+    int sessionId,
+  ) async {
+    if (sessionId <= 0) {
+      throw Exception(
+        'Invalid attendance session ID.',
+      );
+    }
+
+    final uri = Uri.parse(
+      '$baseUrl/lecturer/attendance/$sessionId/pdf',
+    );
+
+    http.Response response;
+
+    try {
+      response = await http.get(
+        uri,
+        headers: headers(token),
+      );
+    } catch (e) {
+      throw Exception(
+        'Could not connect to the server.\n\n'
+        'Make sure the FastAPI server is available.\n\n'
+        '$e',
+      );
+    }
+
+    // ==========================================================
+    // HANDLE HTTP ERRORS
+    // ==========================================================
+
+    if (response.statusCode >= 400) {
+      String message = 'Could not generate attendance PDF.';
+
+      try {
+        final decoded = jsonDecode(response.body);
+
+        if (decoded is Map<String, dynamic>) {
+          if (decoded['detail'] != null) {
+            message = decoded['detail'].toString();
+          } else if (decoded['message'] != null) {
+            message = decoded['message'].toString();
+          }
+        } else if (decoded is String) {
+          message = decoded;
+        }
+      } catch (_) {
+        if (response.body.isNotEmpty) {
+          message = response.body;
+        }
+      }
+
+      throw Exception(
+        '$message (${response.statusCode})',
+      );
+    }
+
+    // ==========================================================
+    // VERIFY PDF RESPONSE
+    // ==========================================================
+
+    if (response.bodyBytes.isEmpty) {
+      throw Exception(
+        'The server returned an empty PDF file.',
+      );
+    }
+
+    return response.bodyBytes;
+  }
   // ============================================================
   // LOGOUT
   // ============================================================
-  //
-  // JWT logout is currently handled locally by Flutter.
-  //
-  // The application should remove:
-  //
-  // - access token
-  // - logged-in user information
-  //
-  // from SharedPreferences.
-  //
+
   static Future<void> logout(
     String token,
   ) async {
     return;
   }
 }
+

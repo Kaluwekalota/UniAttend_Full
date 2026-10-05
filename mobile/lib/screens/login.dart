@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../services/api.dart';
@@ -7,17 +8,19 @@ import 'lecturer_dashboard.dart';
 import 'admin_dashboard.dart';
 
 // ================================================================
-// KMU BRAND COLOURS
+// UNIATTEND PROFESSIONAL NAVY BLUE THEME
 // ================================================================
 
-const Color kmuGreen = Color(0xFF087A4B);
-const Color kmuDarkGreen = Color(0xFF075C39);
-const Color kmuLightGreen = Color(0xFFEAF6F0);
-const Color kmuGold = Color(0xFFF4C542);
+const Color primaryNavy = Color(0xFF0B1F3A);
+const Color darkNavy = Color(0xFF07152A);
+const Color navyBlue = Color(0xFF123B66);
+const Color accentBlue = Color(0xFF2F80ED);
+const Color lightBlue = Color(0xFFEAF2FB);
 
-const Color pageBackground = Color(0xFFF5F8F6);
-const Color textDark = Color(0xFF17352A);
-const Color textGrey = Color(0xFF6B7C74);
+const Color pageBackground = Color(0xFFF4F7FB);
+const Color textDark = Color(0xFF172B3F);
+const Color textGrey = Color(0xFF718096);
+const Color borderGrey = Color(0xFFDCE4ED);
 
 // ================================================================
 // LOGIN SCREEN
@@ -53,9 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      showMessage(
-        'Please enter your email and password.',
-      );
+      showMessage('Please enter your email and password.');
       return;
     }
 
@@ -94,52 +95,28 @@ class _LoginScreenState extends State<LoginScreen> {
           Map<String, dynamic>.from(user);
 
       final role =
-          userData['role']
-              ?.toString()
-              .toLowerCase();
+          userData['role']?.toString().toLowerCase();
 
       if (!mounted) return;
 
       Widget screen;
-
-      // ------------------------------------------------------------
-      // STUDENT
-      // ------------------------------------------------------------
 
       if (role == 'student') {
         screen = StudentDashboard(
           user: userData,
           token: token.toString(),
         );
-      }
-
-      // ------------------------------------------------------------
-      // LECTURER
-      // ------------------------------------------------------------
-
-      else if (role == 'lecturer') {
+      } else if (role == 'lecturer') {
         screen = LecturerDashboard(
           user: userData,
           token: token.toString(),
         );
-      }
-
-      // ------------------------------------------------------------
-      // ADMIN
-      // ------------------------------------------------------------
-
-      else if (role == 'admin') {
+      } else if (role == 'admin') {
         screen = AdminDashboard(
           user: userData,
           token: token.toString(),
         );
-      }
-
-      // ------------------------------------------------------------
-      // UNKNOWN ROLE
-      // ------------------------------------------------------------
-
-      else {
+      } else {
         throw Exception(
           'Unknown user role: $role',
         );
@@ -193,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(18),
         duration: const Duration(seconds: 3),
-        backgroundColor: kmuDarkGreen,
+        backgroundColor: primaryNavy,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -236,42 +213,50 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(
-          color: const Color(0xFFE1EAE5),
+          color: borderGrey,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(
-              alpha: 0.07,
+            color: primaryNavy.withValues(
+              alpha: 0.09,
             ),
-            blurRadius: 30,
-            offset: const Offset(0, 12),
+            blurRadius: 35,
+            offset: const Offset(0, 15),
           ),
         ],
       ),
       child: Column(
         children: [
           // ========================================================
-          // GREEN HEADER
+          // NAVY HEADER
           // ========================================================
 
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(
               25,
-              30,
+              34,
               25,
-              28,
+              30,
             ),
             decoration: const BoxDecoration(
-              color: kmuGreen,
+              gradient: LinearGradient(
+                colors: [
+                  darkNavy,
+                  primaryNavy,
+                  navyBlue,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
+                topLeft: Radius.circular(26),
+                topRight: Radius.circular(26),
               ),
             ),
-            child: _buildUniversityHeader(),
+            child: _buildUniAttendHeader(),
           ),
 
           // ========================================================
@@ -293,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Welcome Back',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 27,
                     fontWeight: FontWeight.w800,
                     color: textDark,
                   ),
@@ -302,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 7),
 
                 const Text(
-                  'Sign in to access your UniAttend account.',
+                  'Sign in to continue to your UniAttend account.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -312,13 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 30),
 
-                // ==================================================
-                // EMAIL
-                // ==================================================
-
-                _buildFieldLabel(
-                  'Email Address',
-                ),
+                _buildFieldLabel('Email Address'),
 
                 const SizedBox(height: 8),
 
@@ -336,13 +315,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
 
-                // ==================================================
-                // PASSWORD
-                // ==================================================
-
-                _buildFieldLabel(
-                  'Password',
-                ),
+                _buildFieldLabel('Password'),
 
                 const SizedBox(height: 8),
 
@@ -369,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscurePassword
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
-                        color: kmuGreen,
+                        color: primaryNavy,
                       ),
                     ),
                   ),
@@ -378,19 +351,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 28),
 
                 // ==================================================
-                // LOGIN BUTTON
+                // SIGN IN
                 // ==================================================
 
                 SizedBox(
-                  height: 54,
+                  height: 55,
                   child: FilledButton(
                     onPressed:
                         loading ? null : login,
                     style: FilledButton.styleFrom(
-                      backgroundColor: kmuGreen,
+                      backgroundColor: primaryNavy,
                       disabledBackgroundColor:
-                          const Color(0xFF9DB8AA),
-                      elevation: 1,
+                          const Color(0xFF9AA9B9),
+                      elevation: 2,
                       shape:
                           RoundedRectangleBorder(
                         borderRadius:
@@ -422,7 +395,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   fontSize: 15,
                                   fontWeight:
                                       FontWeight.w800,
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.6,
                                 ),
                               ),
                             ],
@@ -431,10 +404,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 const SizedBox(height: 27),
-
-                // ==================================================
-                // DIVIDER
-                // ==================================================
 
                 Row(
                   children: [
@@ -454,7 +423,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontSize: 10,
                           fontWeight:
                               FontWeight.w800,
-                          color: Color(0xFF9AA8A0),
+                          color: textGrey,
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -470,7 +439,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
 
                 // ==================================================
-                // REGISTER BUTTON
+                // CREATE ACCOUNT
                 // ==================================================
 
                 OutlinedButton(
@@ -480,15 +449,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           : openRegistration,
                   style:
                       OutlinedButton.styleFrom(
-                    foregroundColor: kmuGreen,
+                    foregroundColor: primaryNavy,
                     side: const BorderSide(
-                      color: kmuGreen,
+                      color: primaryNavy,
                       width: 1.3,
                     ),
                     minimumSize:
                         const Size(
                       double.infinity,
-                      50,
+                      51,
                     ),
                     shape:
                         RoundedRectangleBorder(
@@ -508,29 +477,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 25),
 
-                // ==================================================
-                // FOOTER
-                // ==================================================
-
                 const Text(
                   'UNIATTEND',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
-                    color: kmuGreen,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.8,
+                    color: primaryNavy,
                   ),
                 ),
 
                 const SizedBox(height: 4),
 
                 const Text(
-                  'Automated Attendance Management System',
+                  'SMART ATTENDANCE • SECURE • SIMPLE',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: textGrey,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.6,
                   ),
                 ),
               ],
@@ -542,101 +509,102 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ==============================================================
-  // UNIVERSITY HEADER
+  // UNIATTEND HEADER
   // ==============================================================
 
-  Widget _buildUniversityHeader() {
+  Widget _buildUniAttendHeader() {
     return Column(
       children: [
         // ----------------------------------------------------------
-        // KMU LOGO
+        // PROFESSIONAL SYSTEM ICON
         // ----------------------------------------------------------
 
         Container(
-          width: 105,
-          height: 105,
-          padding: const EdgeInsets.all(5),
+          width: 94,
+          height: 94,
           decoration: BoxDecoration(
             color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: kmuGold,
-              width: 3,
-            ),
+            borderRadius:
+                BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(
-                  alpha: 0.10,
+                  alpha: 0.15,
                 ),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
               ),
             ],
           ),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/images/kmu_logo.jpg',
-              fit: BoxFit.contain,
-              errorBuilder:
-                  (context, error, stackTrace) {
-                return const Icon(
-                  Icons.account_balance,
-                  size: 45,
-                  color: kmuGreen,
-                );
-              },
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              const Icon(
+                Icons.qr_code_scanner_rounded,
+                size: 51,
+                color: primaryNavy,
+              ),
+
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Container(
+                  width: 29,
+                  height: 29,
+                  decoration: BoxDecoration(
+                    color: accentBlue,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 3,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
 
-        const SizedBox(height: 18),
-
-        const Text(
-          'KAPASA MAKASA UNIVERSITY',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-          ),
-        ),
-
-        const SizedBox(height: 5),
-
-        Container(
-          width: 70,
-          height: 3,
-          decoration: BoxDecoration(
-            color: kmuGold,
-            borderRadius:
-                BorderRadius.circular(10),
-          ),
-        ),
-
-        const SizedBox(height: 13),
+        const SizedBox(height: 20),
 
         const Text(
           'UNIATTEND',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 21,
+            fontSize: 27,
             fontWeight: FontWeight.w900,
-            letterSpacing: 2,
+            letterSpacing: 2.5,
           ),
         ),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 7),
+
+        Container(
+          width: 65,
+          height: 3,
+          decoration: BoxDecoration(
+            color: accentBlue,
+            borderRadius:
+                BorderRadius.circular(10),
+          ),
+        ),
+
+        const SizedBox(height: 12),
 
         const Text(
-          'AUTOMATED ATTENDANCE MANAGEMENT SYSTEM',
+          'SMART ATTENDANCE MANAGEMENT SYSTEM',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white70,
             fontSize: 9,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.7,
+            letterSpacing: 0.8,
           ),
         ),
       ],
@@ -669,13 +637,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
+
       prefixIcon: Icon(
         icon,
-        color: kmuGreen,
+        color: primaryNavy,
       ),
+
       suffixIcon: suffixIcon,
+
       filled: true,
-      fillColor: const Color(0xFFF7FAF8),
+
+      fillColor: const Color(0xFFF7F9FC),
 
       border: OutlineInputBorder(
         borderRadius:
@@ -688,7 +660,7 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius:
             BorderRadius.circular(13),
         borderSide: const BorderSide(
-          color: Color(0xFFDCE7E1),
+          color: borderGrey,
         ),
       ),
 
@@ -696,8 +668,9 @@ class _LoginScreenState extends State<LoginScreen> {
           OutlineInputBorder(
         borderRadius:
             BorderRadius.circular(13),
-        borderSide: const BorderSide(
-          color: kmuGreen,
+        borderSide:
+            const BorderSide(
+          color: accentBlue,
           width: 1.6,
         ),
       ),
@@ -749,7 +722,6 @@ class _RegistrationScreenState
   String role = 'student';
 
   bool loading = false;
-
   bool obscurePassword = true;
 
   @override
@@ -765,7 +737,7 @@ class _RegistrationScreenState
   }
 
   // ==============================================================
-  // REGISTER USER
+  // REGISTER
   // ==============================================================
 
   Future<void> register() async {
@@ -883,7 +855,7 @@ class _RegistrationScreenState
             SnackBarBehavior.floating,
         margin:
             const EdgeInsets.all(16),
-        backgroundColor: kmuDarkGreen,
+        backgroundColor: primaryNavy,
         shape:
             RoundedRectangleBorder(
           borderRadius:
@@ -894,7 +866,7 @@ class _RegistrationScreenState
   }
 
   // ==============================================================
-  // BUILD REGISTRATION
+  // BUILD
   // ==============================================================
 
   @override
@@ -907,7 +879,7 @@ class _RegistrationScreenState
           pageBackground,
 
       appBar: AppBar(
-        backgroundColor: kmuGreen,
+        backgroundColor: primaryNavy,
         foregroundColor: Colors.white,
         elevation: 0,
 
@@ -938,25 +910,24 @@ class _RegistrationScreenState
                   color: Colors.white,
                   borderRadius:
                       BorderRadius.circular(
-                    24,
+                    26,
                   ),
                   border: Border.all(
                     color:
-                        const Color(
-                      0xFFE1EAE5,
-                    ),
+                        borderGrey,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black
-                          .withValues(
-                        alpha: 0.06,
+                      color:
+                          primaryNavy
+                              .withValues(
+                        alpha: 0.08,
                       ),
-                      blurRadius: 25,
+                      blurRadius: 30,
                       offset:
                           const Offset(
                         0,
-                        10,
+                        12,
                       ),
                     ),
                   ],
@@ -975,65 +946,125 @@ class _RegistrationScreenState
 
                     children: [
                       // =================================================
-                      // LOGO
+                      // UNIATTEND ICON
                       // =================================================
 
                       Center(
                         child: Container(
-                          width: 95,
-                          height: 95,
-                          padding:
-                              const EdgeInsets
-                                  .all(4),
+                          width: 92,
+                          height: 92,
                           decoration:
                               BoxDecoration(
-                            shape:
-                                BoxShape.circle,
-                            border:
-                                Border.all(
-                              color: kmuGold,
-                              width: 3,
+                            gradient:
+                                const LinearGradient(
+                              colors: [
+                                darkNavy,
+                                navyBlue,
+                              ],
                             ),
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              25,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    primaryNavy
+                                        .withValues(
+                                  alpha: 0.18,
+                                ),
+                                blurRadius:
+                                    15,
+                                offset:
+                                    const Offset(
+                                  0,
+                                  7,
+                                ),
+                              ),
+                            ],
                           ),
-                          child: ClipOval(
-                            child:
-                                Image.asset(
-                              'assets/images/kmu_logo.jpg',
-                              fit: BoxFit.contain,
-                            ),
+                          child: Stack(
+                            alignment:
+                                Alignment
+                                    .center,
+                            children: [
+                              const Icon(
+                                Icons
+                                    .qr_code_scanner_rounded,
+                                color:
+                                    Colors.white,
+                                size: 48,
+                              ),
+                              Positioned(
+                                right: 9,
+                                bottom: 9,
+                                child:
+                                    Container(
+                                  width: 27,
+                                  height: 27,
+                                  decoration:
+                                      BoxDecoration(
+                                    color:
+                                        accentBlue,
+                                    shape:
+                                        BoxShape
+                                            .circle,
+                                    border:
+                                        Border.all(
+                                      color:
+                                          Colors.white,
+                                      width: 2.5,
+                                    ),
+                                  ),
+                                  child:
+                                      const Icon(
+                                    Icons
+                                        .check_rounded,
+                                    color:
+                                        Colors.white,
+                                    size: 17,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
 
                       const SizedBox(
-                        height: 16,
+                        height: 18,
                       ),
 
                       const Text(
-                        'KAPASA MAKASA UNIVERSITY',
+                        'UNIATTEND',
                         textAlign:
                             TextAlign.center,
                         style: TextStyle(
-                          color: kmuGreen,
-                          fontSize: 15,
+                          color:
+                              primaryNavy,
+                          fontSize: 22,
                           fontWeight:
-                              FontWeight.w800,
+                              FontWeight.w900,
+                          letterSpacing:
+                              2,
                         ),
                       ),
 
                       const SizedBox(
-                        height: 5,
+                        height: 6,
                       ),
 
                       const Text(
-                        'Create Your UniAttend Account',
+                        'Create your account',
                         textAlign:
                             TextAlign.center,
                         style: TextStyle(
                           fontSize: 23,
                           fontWeight:
                               FontWeight.w800,
-                          color: textDark,
+                          color:
+                              textDark,
                         ),
                       ),
 
@@ -1042,11 +1073,12 @@ class _RegistrationScreenState
                       ),
 
                       const Text(
-                        'Register to access the automated attendance system.',
+                        'Register to access the smart attendance system.',
                         textAlign:
                             TextAlign.center,
                         style: TextStyle(
-                          color: textGrey,
+                          color:
+                              textGrey,
                           fontSize: 13,
                         ),
                       ),
@@ -1069,20 +1101,19 @@ class _RegistrationScreenState
 
                       SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment<
-                              String>(
+                          ButtonSegment<String>(
                             value:
                                 'student',
                             icon: Icon(
-                              Icons.school_outlined,
+                              Icons
+                                  .school_outlined,
                             ),
                             label:
                                 Text(
                               'Student',
                             ),
                           ),
-                          ButtonSegment<
-                              String>(
+                          ButtonSegment<String>(
                             value:
                                 'lecturer',
                             icon: Icon(
@@ -1100,7 +1131,8 @@ class _RegistrationScreenState
                             (selection) {
                           setState(() {
                             role =
-                                selection.first;
+                                selection
+                                    .first;
                           });
                         },
                         style:
@@ -1109,7 +1141,8 @@ class _RegistrationScreenState
                               WidgetStateProperty
                                   .resolveWith(
                             (states) {
-                              if (states.contains(
+                              if (states
+                                  .contains(
                                 WidgetState
                                     .selected,
                               )) {
@@ -1117,18 +1150,19 @@ class _RegistrationScreenState
                                     .white;
                               }
 
-                              return kmuGreen;
+                              return primaryNavy;
                             },
                           ),
                           backgroundColor:
                               WidgetStateProperty
                                   .resolveWith(
                             (states) {
-                              if (states.contains(
+                              if (states
+                                  .contains(
                                 WidgetState
                                     .selected,
                               )) {
-                                return kmuGreen;
+                                return primaryNavy;
                               }
 
                               return Colors
@@ -1162,7 +1196,8 @@ class _RegistrationScreenState
                           hint:
                               'Enter your full name',
                           icon:
-                              Icons.person_outline,
+                              Icons
+                                  .person_outline,
                         ),
                       ),
 
@@ -1193,7 +1228,8 @@ class _RegistrationScreenState
                           hint:
                               'Enter your email address',
                           icon:
-                              Icons.email_outlined,
+                              Icons
+                                  .email_outlined,
                         ),
                       ),
 
@@ -1222,7 +1258,8 @@ class _RegistrationScreenState
                             hint:
                                 'Enter your student ID',
                             icon:
-                                Icons.badge_outlined,
+                                Icons
+                                    .badge_outlined,
                           ),
                         ),
 
@@ -1246,7 +1283,8 @@ class _RegistrationScreenState
                             hint:
                                 'Enter your programme',
                             icon:
-                                Icons.menu_book_outlined,
+                                Icons
+                                    .menu_book_outlined,
                           ),
                         ),
 
@@ -1276,7 +1314,8 @@ class _RegistrationScreenState
                             hint:
                                 'Enter your staff ID',
                             icon:
-                                Icons.badge_outlined,
+                                Icons
+                                    .badge_outlined,
                           ),
                         ),
 
@@ -1307,7 +1346,8 @@ class _RegistrationScreenState
                           hint:
                               'Create a password',
                           icon:
-                              Icons.lock_outline,
+                              Icons
+                                  .lock_outline,
                           suffixIcon:
                               IconButton(
                             onPressed: () {
@@ -1323,7 +1363,7 @@ class _RegistrationScreenState
                                   : Icons
                                       .visibility_off_outlined,
                               color:
-                                  kmuGreen,
+                                  primaryNavy,
                             ),
                           ),
                         ),
@@ -1334,7 +1374,7 @@ class _RegistrationScreenState
                       ),
 
                       // =================================================
-                      // REGISTER BUTTON
+                      // REGISTER
                       // =================================================
 
                       SizedBox(
@@ -1349,10 +1389,10 @@ class _RegistrationScreenState
                               FilledButton
                                   .styleFrom(
                             backgroundColor:
-                                kmuGreen,
+                                primaryNavy,
                             disabledBackgroundColor:
                                 const Color(
-                              0xFF9DB8AA,
+                              0xFF9AA9B9,
                             ),
                             shape:
                                 RoundedRectangleBorder(
@@ -1410,10 +1450,6 @@ class _RegistrationScreenState
                         height: 12,
                       ),
 
-                      // =================================================
-                      // BACK TO LOGIN
-                      // =================================================
-
                       TextButton(
                         onPressed:
                             loading
@@ -1425,7 +1461,8 @@ class _RegistrationScreenState
                         child: const Text(
                           'Already have an account? Sign In',
                           style: TextStyle(
-                            color: kmuGreen,
+                            color:
+                                primaryNavy,
                             fontWeight:
                                 FontWeight.w700,
                           ),
@@ -1437,14 +1474,15 @@ class _RegistrationScreenState
                       ),
 
                       const Text(
-                        'UNIATTEND • KAPASA MAKASA UNIVERSITY',
+                        'UNIATTEND • SMART ATTENDANCE',
                         textAlign:
                             TextAlign.center,
                         style: TextStyle(
                           fontSize: 9,
-                          color: textGrey,
+                          color:
+                              textGrey,
                           letterSpacing:
-                              0.5,
+                              0.6,
                         ),
                       ),
                     ],
@@ -1487,7 +1525,7 @@ class _RegistrationScreenState
 
       prefixIcon: Icon(
         icon,
-        color: kmuGreen,
+        color: primaryNavy,
       ),
 
       suffixIcon: suffixIcon,
@@ -1495,20 +1533,22 @@ class _RegistrationScreenState
       filled: true,
 
       fillColor:
-          const Color(0xFFF7FAF8),
+          const Color(0xFFF7F9FC),
 
       border: OutlineInputBorder(
         borderRadius:
             BorderRadius.circular(13),
-        borderSide: BorderSide.none,
+        borderSide:
+            BorderSide.none,
       ),
 
       enabledBorder:
           OutlineInputBorder(
         borderRadius:
             BorderRadius.circular(13),
-        borderSide: const BorderSide(
-          color: Color(0xFFDCE7E1),
+        borderSide:
+            const BorderSide(
+          color: borderGrey,
         ),
       ),
 
@@ -1518,7 +1558,7 @@ class _RegistrationScreenState
             BorderRadius.circular(13),
         borderSide:
             const BorderSide(
-          color: kmuGreen,
+          color: accentBlue,
           width: 1.6,
         ),
       ),
@@ -1531,3 +1571,4 @@ class _RegistrationScreenState
     );
   }
 }
+

@@ -1,33 +1,173 @@
 from datetime import datetime
-from sqlalchemy import Boolean,Column,DateTime,ForeignKey,Integer,String,UniqueConstraint
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+
 from sqlalchemy.orm import relationship
+
 from .database import Base
 
+
+# ============================================================
+# USER
+# ============================================================
+
 class User(Base):
-    __tablename__="users"
-    id=Column(Integer,primary_key=True,index=True); full_name=Column(String(150),nullable=False)
-    email=Column(String(255),unique=True,index=True,nullable=False); password_hash=Column(String(255),nullable=False)
-    role=Column(String(30),nullable=False,index=True); student_id=Column(String(80),unique=True,index=True)
-    staff_id=Column(String(80),unique=True,index=True); programme=Column(String(150)); department=Column(String(150))
-    profile_picture=Column(String(500)); is_active=Column(Boolean,default=True,nullable=False)
-    created_at=Column(DateTime,default=datetime.utcnow,nullable=False)
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    full_name = Column(
+        String(150),
+        nullable=False,
+    )
+
+    email = Column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    password_hash = Column(
+        String(255),
+        nullable=False,
+    )
+
+    role = Column(
+        String(30),
+        nullable=False,
+        index=True,
+    )
+
+    student_id = Column(
+        String(80),
+        unique=True,
+        index=True,
+    )
+
+    staff_id = Column(
+        String(80),
+        unique=True,
+        index=True,
+    )
+
+    programme = Column(
+        String(150),
+    )
+
+    department = Column(
+        String(150),
+    )
+
+    profile_picture = Column(
+        String(500),
+    )
+
+    is_active = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+
+# ============================================================
+# COURSE
+# ============================================================
 
 class Course(Base):
-    __tablename__="courses"
-    id=Column(Integer,primary_key=True,index=True); code=Column(String(50),unique=True,nullable=False,index=True)
-    title=Column(String(200),nullable=False); programme=Column(String(100)); lecturer_id=Column(Integer,ForeignKey("users.id"))
-    lecturer=relationship("User")
+    __tablename__ = "courses"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    code = Column(
+        String(50),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    title = Column(
+        String(200),
+        nullable=False,
+    )
+
+    programme = Column(
+        String(100),
+    )
+
+    lecturer_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+    )
+
+    lecturer = relationship(
+        "User",
+    )
+
+
+# ============================================================
+# ENROLLMENT
+# ============================================================
 
 class Enrollment(Base):
-    __tablename__="enrollments"
-    id=Column(Integer,primary_key=True); student_id=Column(Integer,ForeignKey("users.id"),nullable=False)
-    course_id=Column(Integer,ForeignKey("courses.id"),nullable=False)
-    __table_args__=(UniqueConstraint("student_id","course_id",name="uq_student_course"),)
+    __tablename__ = "enrollments"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+    )
+
+    student_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    course_id = Column(
+        Integer,
+        ForeignKey("courses.id"),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "student_id",
+            "course_id",
+            name="uq_student_course",
+        ),
+    )
+
+
+# ============================================================
+# TIMETABLE
+# ============================================================
 
 class Timetable(Base):
     __tablename__ = "timetable"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+    )
 
     course_id = Column(
         Integer,
@@ -58,13 +198,6 @@ class Timetable(Base):
         String(100),
     )
 
-    # Example:
-    # Week 1-2
-    # Week 3-4
-    # Week 5-6
-    # Week 7-8
-    # Week 9-10
-    # Week 11-12
     block = Column(
         String(30),
     )
@@ -81,27 +214,236 @@ class Timetable(Base):
         nullable=False,
     )
 
+    # ========================================================
+    # LOCATION BOUNDARY
+    # ========================================================
+
+    # Latitude of the classroom
+    latitude = Column(
+        Float,
+        nullable=True,
+    )
+
+    # Longitude of the classroom
+    longitude = Column(
+        Float,
+        nullable=True,
+    )
+
+    # Maximum distance allowed from the classroom in metres
+    allowed_radius = Column(
+        Float,
+        default=50.0,
+        nullable=False,
+    )
+
     course = relationship(
         "Course",
     )
+
+
+# ============================================================
+# ATTENDANCE SESSION
+# ============================================================
+
 class AttendanceSession(Base):
-    __tablename__="attendance_sessions"
-    id=Column(Integer,primary_key=True); timetable_id=Column(Integer,ForeignKey("timetable.id"),nullable=False)
-    course_id=Column(Integer,ForeignKey("courses.id"),nullable=False); lecturer_id=Column(Integer,ForeignKey("users.id"),nullable=False)
-    token=Column(String(120),unique=True,nullable=False,index=True); created_at=Column(DateTime,default=datetime.utcnow,nullable=False)
-    expires_at=Column(DateTime,nullable=False); class_end_at=Column(DateTime,nullable=False); is_active=Column(Boolean,default=True,nullable=False)
-    session_type=Column(String(20),default="PHYSICAL",nullable=False)
-    timetable=relationship("Timetable"); course=relationship("Course"); lecturer=relationship("User")
+    __tablename__ = "attendance_sessions"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+    )
+
+    timetable_id = Column(
+        Integer,
+        ForeignKey("timetable.id"),
+        nullable=False,
+    )
+
+    course_id = Column(
+        Integer,
+        ForeignKey("courses.id"),
+        nullable=False,
+    )
+
+    lecturer_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    token = Column(
+        String(120),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    expires_at = Column(
+        DateTime,
+        nullable=False,
+    )
+
+    class_end_at = Column(
+        DateTime,
+        nullable=False,
+    )
+
+    is_active = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    session_type = Column(
+        String(20),
+        default="PHYSICAL",
+        nullable=False,
+    )
+
+    timetable = relationship(
+        "Timetable",
+    )
+
+    course = relationship(
+        "Course",
+    )
+
+    lecturer = relationship(
+        "User",
+    )
+
+
+# ============================================================
+# ATTENDANCE
+# ============================================================
 
 class Attendance(Base):
-    __tablename__="attendance"
-    id=Column(Integer,primary_key=True); session_id=Column(Integer,ForeignKey("attendance_sessions.id"),nullable=False)
-    student_id=Column(Integer,ForeignKey("users.id"),nullable=False); idempotency_key=Column(String(120),unique=True,nullable=False,index=True)
-    method=Column(String(50),default="QR+biometric",nullable=False); marked_at=Column(DateTime,default=datetime.utcnow,nullable=False)
-    session=relationship("AttendanceSession"); student=relationship("User")
-    __table_args__=(UniqueConstraint("session_id","student_id",name="uq_attendance_session_student"),)
+    __tablename__ = "attendance"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+    )
+
+    session_id = Column(
+        Integer,
+        ForeignKey("attendance_sessions.id"),
+        nullable=False,
+    )
+
+    student_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    idempotency_key = Column(
+        String(120),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    method = Column(
+        String(50),
+        default="QR+biometric",
+        nullable=False,
+    )
+
+    marked_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    # ========================================================
+    # LOCATION VERIFICATION
+    # ========================================================
+
+    # Student's GPS latitude at attendance time
+    latitude = Column(
+        Float,
+        nullable=True,
+    )
+
+    # Student's GPS longitude at attendance time
+    longitude = Column(
+        Float,
+        nullable=True,
+    )
+
+    # Calculated distance between student and classroom
+    # in metres
+    distance_from_class = Column(
+        Float,
+        nullable=True,
+    )
+
+    # Whether the server verified that the student
+    # was inside the permitted classroom boundary
+    location_verified = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    session = relationship(
+        "AttendanceSession",
+    )
+
+    student = relationship(
+        "User",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "student_id",
+            name="uq_attendance_session_student",
+        ),
+    )
+
+
+# ============================================================
+# AUDIT LOG
+# ============================================================
 
 class AuditLog(Base):
-    __tablename__="audit_logs"
-    id=Column(Integer,primary_key=True); user_id=Column(Integer,ForeignKey("users.id")); action=Column(String(100),nullable=False)
-    details=Column(String(1000)); created_at=Column(DateTime,default=datetime.utcnow,nullable=False); user=relationship("User")
+    __tablename__ = "audit_logs"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+    )
+
+    action = Column(
+        String(100),
+        nullable=False,
+    )
+
+    details = Column(
+        String(1000),
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    user = relationship(
+        "User",
+    )
+

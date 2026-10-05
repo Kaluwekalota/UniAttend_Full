@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../services/api.dart';
 
@@ -25,18 +25,14 @@ class StudentDashboard extends StatefulWidget {
       _StudentDashboardState();
 }
 
-class _StudentDashboardState
-    extends State<StudentDashboard> {
-
+class _StudentDashboardState extends State<StudentDashboard> {
   int selectedIndex = 0;
 
   String? profileImagePath;
 
-  final ImagePicker imagePicker =
-      ImagePicker();
+  final ImagePicker imagePicker = ImagePicker();
 
-  Map<String, dynamic> get user =>
-      widget.user;
+  Map<String, dynamic> get user => widget.user;
 
   String get studentName {
     return (user['name'] ??
@@ -72,12 +68,9 @@ class _StudentDashboardState
   // ==========================================================
 
   Future<void> _loadProfilePicture() async {
+    final prefs = await SharedPreferences.getInstance();
 
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    final path =
-        prefs.getString(
+    final path = prefs.getString(
       'student_profile_picture_$studentId',
     );
 
@@ -86,7 +79,6 @@ class _StudentDashboardState
     if (path != null &&
         path.isNotEmpty &&
         File(path).existsSync()) {
-
       setState(() {
         profileImagePath = path;
       });
@@ -98,11 +90,8 @@ class _StudentDashboardState
   // ==========================================================
 
   Future<void> _selectProfilePicture() async {
-
     try {
-
-      final XFile? image =
-          await imagePicker.pickImage(
+      final XFile? image = await imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
         maxWidth: 1000,
@@ -113,8 +102,7 @@ class _StudentDashboardState
         return;
       }
 
-      final prefs =
-          await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance();
 
       await prefs.setString(
         'student_profile_picture_$studentId',
@@ -127,21 +115,17 @@ class _StudentDashboardState
         profileImagePath = image.path;
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Profile picture updated successfully.',
           ),
         ),
       );
-
     } catch (e) {
-
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Unable to select profile picture: $e',
@@ -157,22 +141,15 @@ class _StudentDashboardState
   // ==========================================================
 
   Future<void> _logout() async {
-
-    final shouldLogout =
-        await showDialog<bool>(
+    final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text(
-            'Logout',
-          ),
-
+          title: const Text('Logout'),
           content: const Text(
             'Are you sure you want to logout?',
           ),
-
           actions: [
-
             TextButton(
               onPressed: () {
                 Navigator.pop(
@@ -180,11 +157,8 @@ class _StudentDashboardState
                   false,
                 );
               },
-              child: const Text(
-                'CANCEL',
-              ),
+              child: const Text('CANCEL'),
             ),
-
             FilledButton(
               onPressed: () {
                 Navigator.pop(
@@ -192,9 +166,7 @@ class _StudentDashboardState
                   true,
                 );
               },
-              child: const Text(
-                'LOGOUT',
-              ),
+              child: const Text('LOGOUT'),
             ),
           ],
         );
@@ -205,20 +177,15 @@ class _StudentDashboardState
       return;
     }
 
-    final prefs =
-        await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
-    // Remove authentication information.
     await prefs.remove('token');
     await prefs.remove('user');
     await prefs.remove('role');
 
     if (!mounted) return;
 
-    // Go back to login and remove
-    // all previous screens.
-    Navigator.of(context)
-        .pushNamedAndRemoveUntil(
+    Navigator.of(context).pushNamedAndRemoveUntil(
       '/login',
       (route) => false,
     );
@@ -226,7 +193,6 @@ class _StudentDashboardState
 
   @override
   Widget build(BuildContext context) {
-
     final pages = [
       _buildDashboard(),
       _buildTimetablePage(),
@@ -235,7 +201,6 @@ class _StudentDashboardState
     ];
 
     return Scaffold(
-
       appBar: AppBar(
         title: const Text(
           'UniAttend',
@@ -244,9 +209,7 @@ class _StudentDashboardState
           ),
         ),
         centerTitle: true,
-
         actions: [
-
           IconButton(
             tooltip: 'Logout',
             onPressed: _logout,
@@ -272,21 +235,14 @@ class _StudentDashboardState
                 )
               : null,
 
-      bottomNavigationBar:
-          NavigationBar(
-        selectedIndex:
-            selectedIndex,
-
-        onDestinationSelected:
-            (index) {
-
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: (index) {
           setState(() {
             selectedIndex = index;
           });
         },
-
         destinations: const [
-
           NavigationDestination(
             icon: Icon(
               Icons.dashboard_outlined,
@@ -296,7 +252,6 @@ class _StudentDashboardState
             ),
             label: 'Dashboard',
           ),
-
           NavigationDestination(
             icon: Icon(
               Icons.calendar_month_outlined,
@@ -306,7 +261,6 @@ class _StudentDashboardState
             ),
             label: 'Timetable',
           ),
-
           NavigationDestination(
             icon: Icon(
               Icons.fact_check_outlined,
@@ -316,7 +270,6 @@ class _StudentDashboardState
             ),
             label: 'Attendance',
           ),
-
           NavigationDestination(
             icon: Icon(
               Icons.person_outline,
@@ -336,92 +289,63 @@ class _StudentDashboardState
   // ==========================================================
 
   Widget _buildDashboard() {
-
     return RefreshIndicator(
       onRefresh: () async {
         setState(() {});
       },
-
       child: ListView(
-        padding:
-            const EdgeInsets.all(18),
-
+        padding: const EdgeInsets.all(18),
         children: [
-
           Text(
             'Welcome back,',
             style: TextStyle(
               fontSize: 16,
-              color:
-                  Colors.grey.shade600,
+              color: Colors.grey.shade600,
             ),
           ),
-
           const SizedBox(height: 4),
-
           Text(
             studentName,
             style: const TextStyle(
               fontSize: 28,
-              fontWeight:
-                  FontWeight.bold,
+              fontWeight: FontWeight.bold,
             ),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             programme,
             style: TextStyle(
-              color:
-                  Colors.grey.shade700,
+              color: Colors.grey.shade700,
             ),
           ),
-
           const SizedBox(height: 25),
-
           Card(
             elevation: 2,
-
             child: Padding(
-              padding:
-                  const EdgeInsets.all(18),
-
+              padding: const EdgeInsets.all(18),
               child: Row(
                 children: [
-
                   _profileAvatar(
                     radius: 32,
                   ),
-
                   const SizedBox(width: 15),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
-
                       children: [
-
                         Text(
                           studentName,
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight.bold,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
                             fontSize: 18,
                           ),
                         ),
-
-                        const SizedBox(
-                          height: 5,
-                        ),
-
+                        const SizedBox(height: 5),
                         Text(
                           'Student ID: $studentId',
                           style: TextStyle(
-                            color:
-                                Colors.grey.shade700,
+                            color: Colors.grey.shade700,
                           ),
                         ),
                       ],
@@ -431,45 +355,34 @@ class _StudentDashboardState
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
           SizedBox(
             width: double.infinity,
             height: 58,
-
             child: FilledButton.icon(
               onPressed: _openScanner,
-
               icon: const Icon(
                 Icons.qr_code_scanner,
                 size: 28,
               ),
-
               label: const Text(
                 'SCAN ATTENDANCE QR',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight:
-                      FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-
           const SizedBox(height: 25),
-
           const Text(
             'Quick Access',
             style: TextStyle(
               fontSize: 20,
-              fontWeight:
-                  FontWeight.bold,
+              fontWeight: FontWeight.bold,
             ),
           ),
-
           const SizedBox(height: 12),
-
           _menuTile(
             Icons.calendar_month,
             'My Timetable',
@@ -480,7 +393,6 @@ class _StudentDashboardState
               });
             },
           ),
-
           _menuTile(
             Icons.fact_check,
             'Attendance History',
@@ -491,7 +403,6 @@ class _StudentDashboardState
               });
             },
           ),
-
           _menuTile(
             Icons.person,
             'My Profile',
@@ -512,50 +423,30 @@ class _StudentDashboardState
   // ==========================================================
 
   Widget _buildProfilePage() {
-
     return ListView(
-      padding:
-          const EdgeInsets.all(18),
-
+      padding: const EdgeInsets.all(18),
       children: [
-
         const SizedBox(height: 20),
-
-        // ======================================================
-        // PROFILE PHOTO
-        // ======================================================
 
         Center(
           child: Stack(
             children: [
-
               _profileAvatar(
                 radius: 65,
               ),
-
               Positioned(
                 bottom: 0,
                 right: 0,
-
                 child: Material(
                   color: Theme.of(context)
                       .colorScheme
                       .primary,
-
-                  shape:
-                      const CircleBorder(),
-
+                  shape: const CircleBorder(),
                   child: InkWell(
-                    onTap:
-                        _selectProfilePicture,
-
-                    customBorder:
-                        const CircleBorder(),
-
+                    onTap: _selectProfilePicture,
+                    customBorder: const CircleBorder(),
                     child: const Padding(
-                      padding:
-                          EdgeInsets.all(12),
-
+                      padding: EdgeInsets.all(12),
                       child: Icon(
                         Icons.camera_alt,
                         color: Colors.white,
@@ -576,8 +467,7 @@ class _StudentDashboardState
             'Tap the camera icon to change your photo',
             style: TextStyle(
               fontSize: 12,
-              color:
-                  Colors.grey.shade600,
+              color: Colors.grey.shade600,
             ),
           ),
         ),
@@ -589,8 +479,7 @@ class _StudentDashboardState
             studentName,
             style: const TextStyle(
               fontSize: 24,
-              fontWeight:
-                  FontWeight.bold,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),
@@ -601,8 +490,7 @@ class _StudentDashboardState
           child: Text(
             programme,
             style: TextStyle(
-              color:
-                  Colors.grey.shade700,
+              color: Colors.grey.shade700,
             ),
           ),
         ),
@@ -624,43 +512,31 @@ class _StudentDashboardState
         _profileTile(
           Icons.email,
           'Email',
-          (user['email'] ??
-                  'Not provided')
-              .toString(),
+          (user['email'] ?? 'Not provided').toString(),
         ),
 
         _profileTile(
           Icons.phone,
           'Phone',
-          (user['phone'] ??
-                  'Not provided')
-              .toString(),
+          (user['phone'] ?? 'Not provided').toString(),
         ),
 
         const SizedBox(height: 25),
 
-        // ======================================================
-        // LOGOUT BUTTON
-        // ======================================================
-
         SizedBox(
           width: double.infinity,
           height: 55,
-
           child: OutlinedButton.icon(
             onPressed: _logout,
-
             icon: const Icon(
               Icons.logout,
               color: Colors.red,
             ),
-
             label: const Text(
               'LOGOUT',
               style: TextStyle(
                 color: Colors.red,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -678,16 +554,11 @@ class _StudentDashboardState
   Widget _profileAvatar({
     required double radius,
   }) {
-
     if (profileImagePath != null &&
-        File(profileImagePath!)
-            .existsSync()) {
-
+        File(profileImagePath!).existsSync()) {
       return CircleAvatar(
         radius: radius,
-
-        backgroundImage:
-            FileImage(
+        backgroundImage: FileImage(
           File(profileImagePath!),
         ),
       );
@@ -695,14 +566,11 @@ class _StudentDashboardState
 
     return CircleAvatar(
       radius: radius,
-
       child: Text(
         _initials(studentName),
         style: TextStyle(
-          fontSize:
-              radius * 0.45,
-          fontWeight:
-              FontWeight.bold,
+          fontSize: radius * 0.45,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -713,35 +581,25 @@ class _StudentDashboardState
   // ==========================================================
 
   Widget _buildTimetablePage() {
-
     return FutureBuilder<List<dynamic>>(
-      future:
-          Api.timetable(widget.token),
-
-      builder:
-          (context, snapshot) {
-
+      future: Api.timetable(widget.token),
+      builder: (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
-
           return const Center(
-            child:
-                CircularProgressIndicator(),
+            child: CircularProgressIndicator(),
           );
         }
 
         if (snapshot.hasError) {
-
           return _errorCard(
             'Unable to load timetable.',
           );
         }
 
-        final timetable =
-            snapshot.data ?? [];
+        final timetable = snapshot.data ?? [];
 
         if (timetable.isEmpty) {
-
           return const Center(
             child: Text(
               'No timetable available.',
@@ -750,25 +608,18 @@ class _StudentDashboardState
         }
 
         return ListView(
-          padding:
-              const EdgeInsets.all(18),
-
+          padding: const EdgeInsets.all(18),
           children: [
-
             const Text(
               'My Timetable',
               style: TextStyle(
                 fontSize: 26,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 20),
-
             ...timetable.map(
-              (item) =>
-                  _timetableCard(item),
+              (item) => _timetableCard(item),
             ),
           ],
         );
@@ -776,10 +627,7 @@ class _StudentDashboardState
     );
   }
 
-  Widget _timetableCard(
-    dynamic item,
-  ) {
-
+  Widget _timetableCard(dynamic item) {
     if (item is! Map) {
       return const SizedBox();
     }
@@ -816,26 +664,21 @@ class _StudentDashboardState
             .toString();
 
     return Card(
-      margin:
-          const EdgeInsets.only(
+      margin: const EdgeInsets.only(
         bottom: 12,
       ),
-
       child: ListTile(
         leading: const CircleAvatar(
           child: Icon(
             Icons.school,
           ),
         ),
-
         title: Text(
           course,
           style: const TextStyle(
-            fontWeight:
-                FontWeight.bold,
+            fontWeight: FontWeight.bold,
           ),
         ),
-
         subtitle: Text(
           '$day • $start - $end\n$room',
         ),
@@ -848,65 +691,46 @@ class _StudentDashboardState
   // ==========================================================
 
   Widget _buildAttendancePage() {
-
     return FutureBuilder<List<dynamic>>(
-      future:
-          Api.myAttendance(widget.token),
-
-      builder:
-          (context, snapshot) {
-
+      future: Api.myAttendance(widget.token),
+      builder: (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
-
           return const Center(
-            child:
-                CircularProgressIndicator(),
+            child: CircularProgressIndicator(),
           );
         }
 
         if (snapshot.hasError) {
-
           return _errorCard(
             'Unable to load attendance history.',
           );
         }
 
-        final records =
-            snapshot.data ?? [];
+        final records = snapshot.data ?? [];
 
         return ListView(
-          padding:
-              const EdgeInsets.all(18),
-
+          padding: const EdgeInsets.all(18),
           children: [
-
             const Text(
               'Attendance History',
               style: TextStyle(
                 fontSize: 26,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 20),
-
             if (records.isEmpty)
               const Center(
                 child: Padding(
-                  padding:
-                      EdgeInsets.all(40),
-
+                  padding: EdgeInsets.all(40),
                   child: Text(
                     'No attendance records found.',
                   ),
                 ),
               ),
-
             ...records.map(
-              (record) =>
-                  _attendanceCard(record),
+              (record) => _attendanceCard(record),
             ),
           ],
         );
@@ -914,10 +738,7 @@ class _StudentDashboardState
     );
   }
 
-  Widget _attendanceCard(
-    dynamic record,
-  ) {
-
+  Widget _attendanceCard(dynamic record) {
     if (record is! Map) {
       return const SizedBox();
     }
@@ -937,40 +758,30 @@ class _StudentDashboardState
             .toString();
 
     final status =
-        (record['status'] ??
-                'Present')
-            .toString();
+        (record['status'] ?? 'Present').toString();
 
     return Card(
-      margin:
-          const EdgeInsets.only(
+      margin: const EdgeInsets.only(
         bottom: 10,
       ),
-
       child: ListTile(
-        leading:
-            const CircleAvatar(
+        leading: const CircleAvatar(
           child: Icon(
             Icons.check,
           ),
         ),
-
         title: Text(
           course,
           style: const TextStyle(
-            fontWeight:
-                FontWeight.bold,
+            fontWeight: FontWeight.bold,
           ),
         ),
-
         subtitle: Text(date),
-
         trailing: Text(
           status,
           style: const TextStyle(
             color: Colors.green,
-            fontWeight:
-                FontWeight.bold,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
@@ -978,18 +789,15 @@ class _StudentDashboardState
   }
 
   // ==========================================================
-  // SCANNER
+  // QR SCANNER
   // ==========================================================
 
   Future<void> _openScanner() async {
-
     final String? qrCode =
         await Navigator.push<String>(
       context,
-
       MaterialPageRoute(
-        builder: (_) =>
-            const QRScannerScreen(),
+        builder: (_) => const QRScannerScreen(),
       ),
     );
 
@@ -1005,17 +813,107 @@ class _StudentDashboardState
   }
 
   // ==========================================================
+  // GET STUDENT GPS LOCATION
+  // ==========================================================
+
+  Future<Position> _getStudentLocation() async {
+    // ----------------------------------------------------------
+    // CHECK LOCATION SERVICE
+    // ----------------------------------------------------------
+
+    final serviceEnabled =
+        await Geolocator.isLocationServiceEnabled();
+
+    if (!serviceEnabled) {
+      throw Exception(
+        'Location services are turned off.\n\n'
+        'Please turn on GPS/location services and try again.',
+      );
+    }
+
+    // ----------------------------------------------------------
+    // CHECK PERMISSION
+    // ----------------------------------------------------------
+
+    LocationPermission permission =
+        await Geolocator.checkPermission();
+
+    // ----------------------------------------------------------
+    // REQUEST PERMISSION
+    // ----------------------------------------------------------
+
+    if (permission == LocationPermission.denied) {
+      permission =
+          await Geolocator.requestPermission();
+
+      if (permission == LocationPermission.denied) {
+        throw Exception(
+          'Location permission was denied.\n\n'
+          'Location is required to verify that you are '
+          'inside the classroom.',
+        );
+      }
+    }
+
+    // ----------------------------------------------------------
+    // PERMANENTLY DENIED
+    // ----------------------------------------------------------
+
+    if (permission ==
+        LocationPermission.deniedForever) {
+      throw Exception(
+        'Location permission is permanently denied.\n\n'
+        'Please open your phone settings and allow '
+        'location permission for Uni-Attend.',
+      );
+    }
+
+    // ----------------------------------------------------------
+    // GET CURRENT LOCATION
+    // ----------------------------------------------------------
+
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+    } catch (e) {
+      throw Exception(
+        'Unable to get your current location.\n\n'
+        'Please make sure GPS/location is turned on '
+        'and try again.',
+      );
+    }
+  }
+
+  // ==========================================================
   // ATTENDANCE PROCESS
   // ==========================================================
+  //
+  // QR
+  // ↓
+  // BIOMETRIC
+  // ↓
+  // GPS
+  // ↓
+  // FASTAPI
+  // ↓
+  // CLASSROOM GEOFENCE
+  // ↓
+  // ATTENDANCE
+  //
 
   Future<void> _processAttendance(
     String qrCode,
   ) async {
+    // ========================================================
+    // STEP 1 — BIOMETRIC VERIFICATION
+    // ========================================================
 
     final bool? biometricVerified =
         await Navigator.push<bool>(
       context,
-
       MaterialPageRoute(
         builder: (_) =>
             const BiometricVerificationScreen(),
@@ -1025,29 +923,102 @@ class _StudentDashboardState
     if (!mounted) return;
 
     if (biometricVerified != true) {
-
       _showMessage(
         'Fingerprint verification was not completed.',
+        isError: true,
+      );
+      return;
+    }
+
+    // ========================================================
+    // STEP 2 — GET GPS LOCATION
+    // ========================================================
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return const AlertDialog(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 25,
+                height: 25,
+                child: CircularProgressIndicator(),
+              ),
+              SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  'Getting your location...',
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    Position position;
+
+    try {
+      position = await _getStudentLocation();
+    } catch (e) {
+      if (!mounted) return;
+
+      Navigator.of(context).pop();
+
+      String message = e.toString();
+
+      message = message.replaceFirst(
+        'Exception: ',
+        '',
+      );
+
+      _showMessage(
+        message,
         isError: true,
       );
 
       return;
     }
 
+    if (!mounted) return;
+
+    Navigator.of(context).pop();
+
+    // ========================================================
+    // STEP 3 — VALIDATE STUDENT ID
+    // ========================================================
+
+    final parsedStudentId =
+        int.tryParse(studentId);
+
+    if (parsedStudentId == null ||
+        parsedStudentId <= 0) {
+      _showMessage(
+        'Invalid student account ID.',
+        isError: true,
+      );
+      return;
+    }
+
+    // ========================================================
+    // STEP 4 — SHOW VALIDATION DIALOG
+    // ========================================================
+
     showDialog(
       context: context,
-
       barrierDismissible: false,
-
       builder: (_) {
         return const AlertDialog(
           content: Row(
             children: [
-
-              CircularProgressIndicator(),
-
+              SizedBox(
+                width: 25,
+                height: 25,
+                child: CircularProgressIndicator(),
+              ),
               SizedBox(width: 20),
-
               Expanded(
                 child: Text(
                   'Validating attendance...',
@@ -1060,25 +1031,40 @@ class _StudentDashboardState
     );
 
     try {
+      // ======================================================
+      // UNIQUE ATTENDANCE REQUEST KEY
+      // ======================================================
 
       final String key =
           const Uuid().v4();
 
-      final response =
-          await Api.mark(
+      // ======================================================
+      // SEND ATTENDANCE + GPS TO BACKEND
+      // ======================================================
+
+      final response = await Api.mark(
         widget.token,
-        int.tryParse(studentId) ?? 0,
+        parsedStudentId,
         qrCode,
         key,
+
+        // GPS coordinates
+        latitude: position.latitude,
+        longitude: position.longitude,
+
+        method: 'QR+biometric',
       );
 
       if (!mounted) return;
 
-      Navigator.pop(context);
+      Navigator.of(context).pop();
+
+      // ======================================================
+      // ATTENDANCE SUCCESS
+      // ======================================================
 
       await Navigator.push(
         context,
-
         MaterialPageRoute(
           builder: (_) =>
               AttendanceSuccessScreen(
@@ -1090,25 +1076,36 @@ class _StudentDashboardState
       if (!mounted) return;
 
       setState(() {});
-
     } catch (e) {
-
       if (!mounted) return;
 
-      Navigator.pop(context);
+      Navigator.of(context).pop();
 
-      Navigator.push(
+      String message = e.toString();
+
+      message = message.replaceFirst(
+        'Exception: ',
+        '',
+      );
+
+      // ======================================================
+      // BACKEND REJECTION
+      //
+      // Examples:
+      //
+      // Outside classroom radius
+      // Attendance already recorded
+      // Session expired
+      // Invalid QR
+      // etc.
+      // ======================================================
+
+      await Navigator.push(
         context,
-
         MaterialPageRoute(
           builder: (_) =>
               AttendanceFailedScreen(
-            message: e
-                .toString()
-                .replaceFirst(
-                  'Exception: ',
-                  '',
-                ),
+            message: message,
           ),
         ),
       );
@@ -1125,33 +1122,22 @@ class _StudentDashboardState
     String subtitle,
     VoidCallback onTap,
   ) {
-
     return Card(
       child: ListTile(
-
-        leading:
-            CircleAvatar(
+        leading: CircleAvatar(
           child: Icon(icon),
         ),
-
         title: Text(
           title,
-          style:
-              const TextStyle(
-            fontWeight:
-                FontWeight.bold,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
           ),
         ),
-
-        subtitle:
-            Text(subtitle),
-
-        trailing:
-            const Icon(
+        subtitle: Text(subtitle),
+        trailing: const Icon(
           Icons.arrow_forward_ios,
           size: 16,
         ),
-
         onTap: onTap,
       ),
     );
@@ -1162,28 +1148,20 @@ class _StudentDashboardState
     String title,
     String value,
   ) {
-
     return Card(
       child: ListTile(
-
-        leading:
-            Icon(icon),
-
+        leading: Icon(icon),
         title: Text(
           title,
           style: TextStyle(
-            color:
-                Colors.grey.shade600,
+            color: Colors.grey.shade600,
           ),
         ),
-
         subtitle: Text(
           value,
-          style:
-              const TextStyle(
+          style: const TextStyle(
             fontSize: 16,
-            fontWeight:
-                FontWeight.w500,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -1193,32 +1171,23 @@ class _StudentDashboardState
   Widget _errorCard(
     String message,
   ) {
-
     return Center(
       child: Column(
         mainAxisAlignment:
             MainAxisAlignment.center,
-
         children: [
-
           const Icon(
             Icons.cloud_off,
             size: 60,
           ),
-
           const SizedBox(height: 15),
-
           Text(message),
-
           const SizedBox(height: 15),
-
           FilledButton(
             onPressed: () {
               setState(() {});
             },
-
-            child:
-                const Text('RETRY'),
+            child: const Text('RETRY'),
           ),
         ],
       ),
@@ -1228,7 +1197,6 @@ class _StudentDashboardState
   String _initials(
     String name,
   ) {
-
     final parts =
         name.trim().split(' ');
 
@@ -1237,7 +1205,6 @@ class _StudentDashboardState
     }
 
     if (parts.length == 1) {
-
       return parts.first
           .substring(
             0,
@@ -1256,58 +1223,45 @@ class _StudentDashboardState
     String message, {
     bool isError = false,
   }) {
-
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
-        content:
-            Text(message),
+        content: Text(message),
         backgroundColor:
-            isError
-                ? Colors.red
-                : null,
+            isError ? Colors.red : null,
       ),
     );
   }
 }
 
-
 // ============================================================
 // QR SCANNER
 // ============================================================
 
-class QRScannerScreen
-    extends StatefulWidget {
-
+class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({
     super.key,
   });
 
   @override
-  State<QRScannerScreen>
-      createState() =>
-          _QRScannerScreenState();
+  State<QRScannerScreen> createState() =>
+      _QRScannerScreenState();
 }
 
 class _QRScannerScreenState
     extends State<QRScannerScreen>
     with WidgetsBindingObserver {
-
-  late final MobileScannerController
-      controller;
+  late final MobileScannerController controller;
 
   bool scanned = false;
 
   @override
   void initState() {
-
     super.initState();
 
-    WidgetsBinding.instance
-        .addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
 
-    controller =
-        MobileScannerController(
+    controller = MobileScannerController(
       autoStart: true,
       detectionSpeed:
           DetectionSpeed.noDuplicates,
@@ -1316,7 +1270,6 @@ class _QRScannerScreenState
 
   @override
   void dispose() {
-
     WidgetsBinding.instance
         .removeObserver(this);
 
@@ -1328,18 +1281,14 @@ class _QRScannerScreenState
   void _onDetect(
     BarcodeCapture capture,
   ) {
-
     if (scanned) return;
 
     for (final barcode
         in capture.barcodes) {
-
-      final value =
-          barcode.rawValue;
+      final value = barcode.rawValue;
 
       if (value != null &&
           value.trim().isNotEmpty) {
-
         scanned = true;
 
         controller.stop();
@@ -1358,69 +1307,49 @@ class _QRScannerScreenState
   Widget build(
     BuildContext context,
   ) {
-
     return Scaffold(
-
-      backgroundColor:
-          Colors.black,
-
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text(
           'Scan Attendance QR',
         ),
-
         actions: [
-
           IconButton(
             onPressed: () {
-              controller
-                  .toggleTorch();
+              controller.toggleTorch();
             },
-
             icon: const Icon(
               Icons.flash_on,
             ),
           ),
-
           IconButton(
             onPressed: () {
-              controller
-                  .switchCamera();
+              controller.switchCamera();
             },
-
             icon: const Icon(
               Icons.cameraswitch,
             ),
           ),
         ],
       ),
-
       body: Stack(
         children: [
-
           MobileScanner(
-            controller:
-                controller,
-            onDetect:
-                _onDetect,
+            controller: controller,
+            onDetect: _onDetect,
           ),
 
           Center(
             child: Container(
               width: 280,
               height: 280,
-
-              decoration:
-                  BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border.all(
                   color: Colors.white,
                   width: 3,
                 ),
-
                 borderRadius:
-                    BorderRadius.circular(
-                  20,
-                ),
+                    BorderRadius.circular(20),
               ),
             ),
           ),
@@ -1429,29 +1358,18 @@ class _QRScannerScreenState
             top: 25,
             left: 20,
             right: 20,
-
             child: Container(
               padding:
-                  const EdgeInsets.all(
-                15,
-              ),
-
-              decoration:
-                  BoxDecoration(
+                  const EdgeInsets.all(15),
+              decoration: BoxDecoration(
                 color: Colors.black
                     .withValues(alpha: 0.65),
-
                 borderRadius:
-                    BorderRadius.circular(
-                  15,
-                ),
+                    BorderRadius.circular(15),
               ),
-
               child: const Text(
                 'Position the lecturer QR code inside the box.',
-                textAlign:
-                    TextAlign.center,
-
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -1465,14 +1383,12 @@ class _QRScannerScreenState
   }
 }
 
-
 // ============================================================
 // BIOMETRIC VERIFICATION
 // ============================================================
 
 class BiometricVerificationScreen
     extends StatefulWidget {
-
   const BiometricVerificationScreen({
     super.key,
   });
@@ -1486,7 +1402,6 @@ class BiometricVerificationScreen
 class _BiometricVerificationScreenState
     extends State<
         BiometricVerificationScreen> {
-
   final LocalAuthentication auth =
       LocalAuthentication();
 
@@ -1497,7 +1412,6 @@ class _BiometricVerificationScreenState
       'Verify your identity using your fingerprint.';
 
   Future<void> verifyFingerprint() async {
-
     if (verifying || verified) {
       return;
     }
@@ -1509,7 +1423,6 @@ class _BiometricVerificationScreenState
     });
 
     try {
-
       final supported =
           await auth.isDeviceSupported();
 
@@ -1517,13 +1430,11 @@ class _BiometricVerificationScreenState
           await auth.canCheckBiometrics;
 
       if (!supported || !canCheck) {
-
         setState(() {
           verifying = false;
           message =
               'Biometric authentication is not available.';
         });
-
         return;
       }
 
@@ -1531,13 +1442,11 @@ class _BiometricVerificationScreenState
           await auth.getAvailableBiometrics();
 
       if (available.isEmpty) {
-
         setState(() {
           verifying = false;
           message =
               'No fingerprint is registered on this phone.';
         });
-
         return;
       }
 
@@ -1545,7 +1454,6 @@ class _BiometricVerificationScreenState
           await auth.authenticate(
         localizedReason:
             'Verify your identity to record attendance.',
-
         options:
             const AuthenticationOptions(
           biometricOnly: true,
@@ -1557,7 +1465,6 @@ class _BiometricVerificationScreenState
       if (!mounted) return;
 
       if (authenticated) {
-
         setState(() {
           verifying = false;
           verified = true;
@@ -1577,18 +1484,14 @@ class _BiometricVerificationScreenState
           context,
           true,
         );
-
       } else {
-
         setState(() {
           verifying = false;
           message =
               'Fingerprint verification failed.';
         });
       }
-
     } catch (e) {
-
       if (!mounted) return;
 
       setState(() {
@@ -1603,41 +1506,28 @@ class _BiometricVerificationScreenState
   Widget build(
     BuildContext context,
   ) {
-
     return Scaffold(
-
       appBar: AppBar(
         title: const Text(
           'Identity Verification',
         ),
-
         centerTitle: true,
       ),
-
       body: Center(
-
         child: Padding(
           padding:
               const EdgeInsets.all(25),
-
           child: Column(
             mainAxisAlignment:
                 MainAxisAlignment.center,
-
             children: [
-
               Container(
                 width: 150,
                 height: 150,
-
-                decoration:
-                    BoxDecoration(
-                  shape:
-                      BoxShape.circle,
-
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                   color: verified
-                      ? Colors.green
-                          .withValues(
+                      ? Colors.green.withValues(
                           alpha: 0.12,
                         )
                       : Theme.of(context)
@@ -1647,14 +1537,11 @@ class _BiometricVerificationScreenState
                           alpha: 0.12,
                         ),
                 ),
-
                 child: Icon(
                   verified
                       ? Icons.verified_user
                       : Icons.fingerprint,
-
                   size: 90,
-
                   color: verified
                       ? Colors.green
                       : Theme.of(context)
@@ -1663,34 +1550,25 @@ class _BiometricVerificationScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 30,
-              ),
+              const SizedBox(height: 30),
 
               Text(
                 verified
                     ? 'Identity Verified'
                     : 'Fingerprint Verification',
-
-                textAlign:
-                    TextAlign.center,
-
-                style:
-                    const TextStyle(
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 27,
                   fontWeight:
                       FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(
-                height: 15,
-              ),
+              const SizedBox(height: 15),
 
               Text(
                 message,
-                textAlign:
-                    TextAlign.center,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color:
                       Colors.grey.shade700,
@@ -1698,31 +1576,23 @@ class _BiometricVerificationScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 30,
-              ),
+              const SizedBox(height: 30),
 
               SizedBox(
-                width:
-                    double.infinity,
+                width: double.infinity,
                 height: 55,
-
-                child:
-                    FilledButton.icon(
+                child: FilledButton.icon(
                   onPressed:
-                      verifying ||
-                              verified
+                      verifying || verified
                           ? null
                           : verifyFingerprint,
-
                   icon: verifying
                       ? const SizedBox(
                           width: 22,
                           height: 22,
                           child:
                               CircularProgressIndicator(
-                            strokeWidth:
-                                2,
+                            strokeWidth: 2,
                             color:
                                 Colors.white,
                           ),
@@ -1732,7 +1602,6 @@ class _BiometricVerificationScreenState
                               ? Icons.check
                               : Icons.fingerprint,
                         ),
-
                   label: Text(
                     verified
                         ? 'VERIFIED'
@@ -1750,16 +1619,13 @@ class _BiometricVerificationScreenState
   }
 }
 
-
 // ============================================================
 // SUCCESS SCREEN
 // ============================================================
 
 class AttendanceSuccessScreen
     extends StatelessWidget {
-
-  final Map<String, dynamic>
-      response;
+  final Map<String, dynamic> response;
 
   const AttendanceSuccessScreen({
     super.key,
@@ -1770,75 +1636,54 @@ class AttendanceSuccessScreen
   Widget build(
     BuildContext context,
   ) {
-
     return Scaffold(
-
       appBar: AppBar(
-        title:
-            const Text('Attendance'),
-        automaticallyImplyLeading:
-            false,
+        title: const Text(
+          'Attendance',
+        ),
+        automaticallyImplyLeading: false,
       ),
-
       body: Center(
-
         child: Padding(
           padding:
               const EdgeInsets.all(25),
-
           child: Column(
             mainAxisAlignment:
                 MainAxisAlignment.center,
-
             children: [
-
               const Icon(
                 Icons.check_circle,
                 color: Colors.green,
                 size: 110,
               ),
 
-              const SizedBox(
-                height: 25,
-              ),
+              const SizedBox(height: 25),
 
               const Text(
                 'ATTENDANCE MARKED!',
-                style:
-                    TextStyle(
+                style: TextStyle(
                   fontSize: 27,
                   fontWeight:
                       FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(
-                height: 15,
-              ),
+              const SizedBox(height: 15),
 
               const Text(
                 'Your attendance has been successfully recorded.',
-                textAlign:
-                    TextAlign.center,
+                textAlign: TextAlign.center,
               ),
 
-              const SizedBox(
-                height: 30,
-              ),
+              const SizedBox(height: 30),
 
               SizedBox(
-                width:
-                    double.infinity,
+                width: double.infinity,
                 height: 55,
-
-                child:
-                    FilledButton(
+                child: FilledButton(
                   onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
+                    Navigator.pop(context);
                   },
-
                   child:
                       const Text('DONE'),
                 ),
@@ -1851,14 +1696,12 @@ class AttendanceSuccessScreen
   }
 }
 
-
 // ============================================================
 // FAILED SCREEN
 // ============================================================
 
 class AttendanceFailedScreen
     extends StatelessWidget {
-
   final String message;
 
   const AttendanceFailedScreen({
@@ -1870,52 +1713,38 @@ class AttendanceFailedScreen
   Widget build(
     BuildContext context,
   ) {
-
     return Scaffold(
-
       appBar: AppBar(
         title:
             const Text('Attendance'),
       ),
-
       body: Center(
-
         child: Padding(
           padding:
               const EdgeInsets.all(25),
-
           child: Column(
             mainAxisAlignment:
                 MainAxisAlignment.center,
-
             children: [
-
               const Icon(
                 Icons.error_outline,
                 color: Colors.red,
                 size: 100,
               ),
 
-              const SizedBox(
-                height: 25,
-              ),
+              const SizedBox(height: 25),
 
               const Text(
                 'ATTENDANCE NOT RECORDED',
-                textAlign:
-                    TextAlign.center,
-
-                style:
-                    TextStyle(
+                textAlign: TextAlign.center,
+                style: TextStyle(
                   fontSize: 23,
                   fontWeight:
                       FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(
-                height: 15,
-              ),
+              const SizedBox(height: 15),
 
               Text(
                 message,
@@ -1923,23 +1752,15 @@ class AttendanceFailedScreen
                     TextAlign.center,
               ),
 
-              const SizedBox(
-                height: 30,
-              ),
+              const SizedBox(height: 30),
 
               SizedBox(
-                width:
-                    double.infinity,
+                width: double.infinity,
                 height: 55,
-
-                child:
-                    FilledButton(
+                child: FilledButton(
                   onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
+                    Navigator.pop(context);
                   },
-
                   child:
                       const Text('BACK'),
                 ),

@@ -11,9 +11,7 @@ from fastapi import (
 )
 
 from pydantic import BaseModel
-
 from sqlalchemy.orm import Session
-
 from openpyxl import load_workbook
 
 from .database import get_db
@@ -23,7 +21,6 @@ from .models import (
     Timetable,
     Enrollment,
 )
-
 from .dependencies import current_user, audit
 
 
@@ -37,12 +34,12 @@ from .dependencies import current_user, audit
 # main.py already adds:
 #     prefix="/admin"
 #
-# This prevents routes such as:
-#     /admin/admin/timetable
-#
-# and gives:
+# Therefore:
 #     /admin/timetable
 #
+# instead of:
+#     /admin/admin/timetable
+
 router = APIRouter(
     tags=["Academic Management"],
 )
@@ -104,6 +101,16 @@ class TimetableCreate(BaseModel):
 
 
 # ============================================================
+# CLASSROOM LOCATION MODEL
+# ============================================================
+
+class TimetableLocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+    allowed_radius: float = 50.0
+
+
+# ============================================================
 # TEXT HELPERS
 # ============================================================
 
@@ -119,7 +126,12 @@ def normalize_text(value):
 
     value = value.replace("\n", " ")
     value = value.replace("\r", " ")
-    value = re.sub(r"\s+", " ", value)
+
+    value = re.sub(
+        r"\s+",
+        " ",
+        value,
+    )
 
     return value.strip().lower()
 
@@ -128,7 +140,6 @@ def normalize_course_code(value):
     value = clean_text(value)
 
     value = value.upper()
-
     value = value.replace(" ", "")
     value = value.replace("\n", "")
     value = value.replace("\r", "")
@@ -168,7 +179,6 @@ def timetable_json(item: Timetable):
 
     return {
         "id": item.id,
-
         "course_id": item.course_id,
 
         "course_code": (
@@ -190,17 +200,13 @@ def timetable_json(item: Timetable):
         ),
 
         "lecturer_id": lecturer_id,
-
         "lecturer_name": lecturer_name,
 
         "day": item.day,
-
         "start": item.start,
-
         "end": item.end,
 
         "room": item.room,
-
         "group": item.group_name,
 
         "block": getattr(
@@ -212,6 +218,33 @@ def timetable_json(item: Timetable):
         "class_mode": item.class_mode,
 
         "is_active": item.is_active,
+
+        # ======================================================
+        # LOCATION / GEOFENCING
+        # ======================================================
+
+        "latitude": getattr(
+            item,
+            "latitude",
+            None,
+        ),
+
+        "longitude": getattr(
+            item,
+            "longitude",
+            None,
+        ),
+
+        "allowed_radius": getattr(
+            item,
+            "allowed_radius",
+            50.0,
+        ),
+
+        "location_configured": (
+            getattr(item, "latitude", None) is not None
+            and getattr(item, "longitude", None) is not None
+        ),
     }
 
 
@@ -374,8 +407,10 @@ def create_course(
         code=code,
         title=clean_text(data.title),
         lecturer_id=data.lecturer_id,
-        programme=clean_text(data.programme)
-        or None,
+        programme=(
+            clean_text(data.programme)
+            or None
+        ),
     )
 
     db.add(course)
@@ -509,6 +544,7 @@ def create_enrollment(
         .filter(
             Enrollment.student_id
             == data.student_id,
+
             Enrollment.course_id
             == data.course_id,
         )
@@ -673,10 +709,18 @@ def create_timetable(
         )
 
     class_mode = (
-        clean_text(data.class_mode)
-        .upper()
+        clean_text(data.class_mode).upper()
         or "PHYSICAL"
     )
+
+    if class_mode not in (
+        "PHYSICAL",
+        "ONLINE",
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="class_mode must be PHYSICAL or ONLINE.",
+        )
 
     timetable = Timetable(
         course_id=data.course_id,
@@ -726,6 +770,149 @@ def admin_timetable(
 
 
 # ============================================================
+# ADMIN - UPDATE TIMETABLE LOCATION
+# ============================================================
+
+@router.patch(
+    "/timetable/{timetable_id}/location"
+)
+def update_timetable_location(
+    timetable_id: int,
+    data: TimetableLocationUpdate,
+    u: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Sets the physical classroom coordinates and
+    allowed attendance radius for a timetable entry.
+
+    Example:
+
+        latitude: -12.9708
+        longitude: 28.6366
+        allowed_radius: 50
+    """
+
+    admin_only(u)
+
+    # --------------------------------------------------------
+    # Find timetable
+    # --------------------------------------------------------
+
+    timetable = (
+        db.query(Timetable)
+        .filter(
+            Timetable.id == timetable_id,
+            Timetable.is_active == True,
+        )
+        .first()
+    )
+
+    if not timetable:
+        raise HTTPException(
+            status_code=404,
+            detail="Timetable entry not found.",
+        )
+
+    # --------------------------------------------------------
+    # Validate latitude
+    # --------------------------------------------------------
+
+    if data.latitude < -90 or data.latitude > 90:
+        raise HTTPException(
+            status_code=400,
+            detail="Latitude must be between -90 and 90.",
+        )
+
+    # --------------------------------------------------------
+    # Validate longitude
+    # --------------------------------------------------------
+
+    if data.longitude < -180 or data.longitude > 180:
+        raise HTTPException(
+            status_code=400,
+            detail="Longitude must be between -180 and 180.",
+        )
+
+    # --------------------------------------------------------
+    # Validate radius
+    # --------------------------------------------------------
+
+    if data.allowed_radius <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Allowed radius must be greater than 0 meters.",
+        )
+
+    if data.allowed_radius > 1000:
+        raise HTTPException(
+            status_code=400,
+            detail="Allowed radius cannot exceed 1000 meters.",
+        )
+
+    # --------------------------------------------------------
+    # Online classes do not need a geofence
+    # --------------------------------------------------------
+
+    if (
+        timetable.class_mode
+        and timetable.class_mode.upper() == "ONLINE"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Online classes do not require "
+                "a physical classroom location."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Save location
+    # --------------------------------------------------------
+
+    timetable.latitude = data.latitude
+    timetable.longitude = data.longitude
+    timetable.allowed_radius = data.allowed_radius
+
+    db.commit()
+    db.refresh(timetable)
+
+    # --------------------------------------------------------
+    # Audit
+    # --------------------------------------------------------
+
+    try:
+        audit(
+            db,
+            u.id,
+            "TIMETABLE_LOCATION_UPDATED",
+            (
+                f"timetable={timetable.id}, "
+                f"latitude={data.latitude}, "
+                f"longitude={data.longitude}, "
+                f"radius={data.allowed_radius}"
+            ),
+        )
+    except Exception:
+        # Do not fail a successful location update
+        # if audit logging has a problem.
+        pass
+
+    return {
+        "message": "Classroom location updated successfully.",
+
+        "timetable_id": timetable.id,
+
+        "latitude": timetable.latitude,
+        "longitude": timetable.longitude,
+
+        "allowed_radius": timetable.allowed_radius,
+
+        "location_configured": True,
+    }
+
+
+# ============================================================
 # ADMIN - DELETE TIMETABLE
 # ============================================================
 
@@ -767,10 +954,10 @@ def excel_time(value):
     Converts timetable spreadsheet values into HH:MM.
 
     Examples:
-        08-00  -> 08:00
-        8-00   -> 08:00
-        08:00  -> 08:00
-        8:00   -> 08:00
+        08-00 -> 08:00
+        8-00  -> 08:00
+        08:00 -> 08:00
+        8:00  -> 08:00
     """
 
     if value is None:
@@ -848,14 +1035,20 @@ def find_lecturer(
         .all()
     )
 
+    # ========================================================
     # Exact match
+    # ========================================================
+
     for lecturer in lecturers:
         if normalize_text(
             lecturer.full_name
         ) == target:
             return lecturer
 
+    # ========================================================
     # Partial match
+    # ========================================================
+
     for lecturer in lecturers:
         name = normalize_text(
             lecturer.full_name
@@ -867,7 +1060,10 @@ def find_lecturer(
         ):
             return lecturer
 
+    # ========================================================
     # Compare words
+    # ========================================================
+
     target_words = set(
         target.split()
     )
@@ -892,7 +1088,8 @@ def find_lecturer(
                     min(
                         len(target_words),
                         len(lecturer_words),
-                    ) // 2,
+                    )
+                    // 2,
                 )
             ):
                 return lecturer
@@ -933,8 +1130,7 @@ def find_or_create_course(
             course.programme = "ICT"
             changed = True
 
-        # If lecturer was successfully matched,
-        # attach the lecturer to the course.
+        # Attach matched lecturer
         if (
             lecturer
             and course.lecturer_id != lecturer.id
@@ -1105,7 +1301,8 @@ async def upload_timetable(
         # TIME SLOTS
         # ====================================================
 
-        # Columns 2-9 contain the timetable slots
+        # Columns 2-9 contain timetable slots
+
         for col in range(
             2,
             min(
@@ -1226,13 +1423,17 @@ async def upload_timetable(
 
             for course_code in course_codes:
 
+                normalized_code = (
+                    normalize_course_code(
+                        course_code
+                    )
+                )
+
                 before_course = (
                     db.query(Course)
                     .filter(
                         Course.code
-                        == normalize_course_code(
-                            course_code
-                        )
+                        == normalized_code
                     )
                     .first()
                 )
@@ -1287,22 +1488,37 @@ async def upload_timetable(
                     skipped += 1
                     continue
 
+                # ------------------------------------------------
+                # Create timetable
+                # ------------------------------------------------
+
                 timetable = Timetable(
                     course_id=course.id,
                     day=day,
                     start=start,
                     end=end,
+
                     room=(
                         room_value
                         or None
                     ),
+
                     group_name=None,
+
                     block=(
                         block_value
                         or None
                     ),
+
                     class_mode=class_mode,
+
                     is_active=True,
+
+                    # No location is assigned during upload.
+                    # Admin will configure it from the Flutter UI.
+                    latitude=None,
+                    longitude=None,
+                    allowed_radius=50.0,
                 )
 
                 db.add(timetable)
@@ -1336,12 +1552,20 @@ async def upload_timetable(
 
                         "class_mode":
                             class_mode,
+
+                        "latitude": None,
+
+                        "longitude": None,
+
+                        "allowed_radius": 50.0,
+
+                        "location_configured": False,
                     }
                 )
 
                 created += 1
 
-        # Move to the next 3-row timetable block
+        # Move to next 3-row timetable block
         row += 3
 
     # ========================================================
@@ -1361,6 +1585,10 @@ async def upload_timetable(
                 f"{exc}"
             ),
         )
+
+    # ========================================================
+    # RESPONSE
+    # ========================================================
 
     return {
         "message": "Timetable uploaded successfully.",
@@ -1409,16 +1637,9 @@ def user_timetable(
         Only timetable entries for courses assigned
         to that lecturer.
 
-        IMPORTANT:
-        This returns the COMPLETE timetable.
-        It does NOT filter by today's day.
-
     STUDENT:
         Prototype mode:
-        All active timetable entries from the uploaded
-        ICT timetable.
-
-        Enrollment is intentionally NOT required.
+        All active timetable entries.
     """
 
     # ========================================================
@@ -1481,22 +1702,6 @@ def user_timetable(
 
     if u.role == "student":
 
-        # ====================================================
-        # IMPORTANT PROTOTYPE CHANGE
-        # ====================================================
-        #
-        # Students do NOT need Enrollment records.
-        #
-        # The currently uploaded timetable is the ICT
-        # timetable for this thesis prototype.
-        #
-        # Therefore every student can retrieve the active
-        # timetable.
-        #
-        # Enrollment can still be used later when the system
-        # becomes a production university system.
-        # ====================================================
-
         rows = (
             db.query(Timetable)
             .join(
@@ -1542,6 +1747,7 @@ def user_timetable_by_day(
     Returns timetable entries for a particular day.
 
     Example:
+
         GET /timetable/day/Monday
     """
 
@@ -1609,11 +1815,6 @@ def user_timetable_by_day(
 
     if u.role == "student":
 
-        # Prototype:
-        # No enrollment required.
-        #
-        # The uploaded timetable is ICT.
-
         rows = (
             db.query(Timetable)
             .join(
@@ -1641,3 +1842,4 @@ def user_timetable_by_day(
         status_code=403,
         detail="Unsupported user role.",
     )
+
