@@ -1067,7 +1067,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
           CircleAvatar(
             radius: 30,
             backgroundColor:
-                Colors.white.withOpacity(0.15),
+                Colors.white.withValues(alpha: 0.15),
             child: Text(
               _initials(lecturerName),
               style: const TextStyle(
@@ -1202,7 +1202,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
         boxShadow: [
           BoxShadow(
             color:
-                Colors.black.withOpacity(0.04),
+                Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1344,7 +1344,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
         boxShadow: [
           BoxShadow(
             color:
-                Colors.black.withOpacity(0.03),
+                Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1642,7 +1642,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black
-                            .withOpacity(0.08),
+                            .withValues(alpha: 0.08),
                         blurRadius: 20,
                       ),
                     ],
