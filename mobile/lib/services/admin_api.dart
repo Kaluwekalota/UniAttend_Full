@@ -8,8 +8,8 @@ class AdminApi {
   // BASE URL
   // ============================================================
 
-  static const String baseUrl = 'http://localhost:8000';
-
+ static const String baseUrl =
+    'https://uniattend-backend-gu8b.onrender.com';
   // ============================================================
   // HEADERS
   // ============================================================
